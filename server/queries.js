@@ -1,11 +1,7 @@
-const Pool = require('pg').Pool
-const pool = new Pool({
-  user: 'blueteam',
-  host: 'localhost',
-  database: 'app',
-  password: 'password',
-  port: 5432,
-})
+const {Pool} = require('pg')
+const Auth = require('./connection.js')
+
+const pool = new Pool(Auth)
 
 const getTest = (request, response) => {
   pool.query('SELECT * FROM test', (error, results) => {
@@ -29,5 +25,5 @@ const postTest = (request, response) => {
 
 module.exports = {
 	getTest,
-    postTest
+  postTest
 }
