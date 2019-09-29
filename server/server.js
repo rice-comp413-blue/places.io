@@ -18,8 +18,9 @@ app.get('/', (request, response) => {
 })
 
 const db = require('./queries')
-app.get('/test', db.getTest)
-app.post('/test', db.postTest)
+app.get('/test1', db.psqlTest)
+app.get('/test2', db.getTest)
+app.post('/test3', db.postTest)
 
 app.listen(port, () => {
   console.log(`App running on port ${port}.`)
