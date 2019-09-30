@@ -6,6 +6,7 @@ const pool = new Pool(Auth)
 const getTest = (request, response) => {
   pool.query('SELECT * FROM test', (error, results) => {
     if (error) {
+      response.status(404).json(error.toString())
       throw error
     }
     response.status(200).json(results.rows)
@@ -14,7 +15,6 @@ const getTest = (request, response) => {
 
 const postTest = (request, response) => {
   const name = request.body.name
-
   pool.query('INSERT INTO test (name) values ($1)', [name], (error, results) => {
     if (error) {
       throw error

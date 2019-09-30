@@ -1,0 +1,22 @@
+version: "2"
+services:
+  server:
+    container_name: "server"
+    build: .
+    ports:
+      - 3000:3000
+    command: bash -c 'while !</dev/tcp/db/5432; do sleep 1; done; npm start'
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://blueteam:password@db:5432/app
+      - PORT=3000
+      - HOST=host.docker.internal
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=blueteam
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=app
