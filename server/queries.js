@@ -1,21 +1,7 @@
-const Pool = require('pg').Pool
-const pool = new Pool({
-  user: 'blueteam',
-  host: process.env['HOST'],
-  database: 'app',
-  password: 'password',
-  port: 5432,
-})
+const {Pool} = require('pg')
+const Auth = require('./connection.js')
 
-const psqlTest = (request, response) => {
-  pool.query('SELECT 5 * 5', (error, results) => {
-    if (error) {
-      response.status(404).json(error.toString())
-      throw error
-    }
-    response.status(200).json(results.rows)
-  })
-}
+const pool = new Pool(Auth)
 
 const getTest = (request, response) => {
   pool.query('SELECT * FROM test', (error, results) => {
@@ -39,6 +25,5 @@ const postTest = (request, response) => {
 
 module.exports = {
 	getTest,
-    postTest,
-    psqlTest
+  postTest
 }
