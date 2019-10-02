@@ -2,6 +2,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors');
 const db = require('./queries')
+const validationMiddleware = require('./middleware/validation')
 
 const app = express()
 const port = 3000
@@ -23,6 +24,9 @@ app.get('/', (request, response) => {
 app.get('/test', db.getTest)
 
 app.post('/test', db.postTest)
+
+// example payload: {coord: {lat: 5, lng: 50}}
+app.post('/test-middleware', validationMiddleware.isValidCoordinate, db.getTest)
 
 app.listen(port, () => {
   console.log(`App running on port ${port}.`)
