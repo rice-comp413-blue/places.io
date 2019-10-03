@@ -22,7 +22,6 @@ const createStory = (req, res) => {
     } else if (!newStory.text && !newStory.bucketName) {
         res.status(400).send({ error:true, message: 'Please provide text or bucket name or both.' });
     } else {
-        console.log("inserting...")
         storyModel.createStory(newStory, function(err, record) {
             if (err) {
                 res.status(404).json(err.toString());

@@ -33,5 +33,4 @@ app.post('/test-middleware', validationMiddleware.isValidCoordinate, db.getTest)
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
-    console.log(new Date().toUTCString());
 });
