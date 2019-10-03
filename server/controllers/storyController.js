@@ -31,9 +31,9 @@ const createStory = (req, res) => {
             }
         });
     }
-}
+};
 
 module.exports = {
     createStory,
     getStory
-}
+};
