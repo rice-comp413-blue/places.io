@@ -9,22 +9,30 @@ class MainApp extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            mode: 'view'
+            mode: 'view',
+            curLatLng: {
+                lat: 0,
+                lng: 0
+            }
         };
     }
 
     updateModeFunc(mode) {
         this.setState({ mode })
     }
+    updateLatLngFunc(curLatLng) {
+        this.setState({ curLatLng });
+    }
 
     render() {
+        console.log('CURRENT LAT LNG: ', this.state.curLatLng);
         return (
             <Row>
                 <Col md={3}>
                     <Sidebar mode={this.state.mode} updateModeFunc={this.updateModeFunc.bind(this)} />
                 </Col>
                 <Col md={9}>
-                    <MapView mode={this.state.mode} />
+                    <MapView mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)} />
                 </Col>
             </Row>
         );

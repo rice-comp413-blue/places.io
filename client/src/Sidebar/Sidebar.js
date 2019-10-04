@@ -9,8 +9,8 @@ const Sidebar = (props) => {
             <SegmentedControl
                 name="modeToggle"
                 options={[
-                    { label: "Submit", value: "submit" },
                     { label: "View", value: "view", default: true },
+                    { label: "Submit", value: "submit" },
                 ]}
                 setValue={newMode => updateMode(newMode)}
                 style={{ width: '100%', color: '#2980b9', marginLeft: '1em' }} // purple400
