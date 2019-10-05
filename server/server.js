@@ -25,8 +25,9 @@ app.get('/', (request, response) => {
 app.get('/test', db.getTest);
 app.post('/test', db.postTest);
 
-app.post('/story', story.createStory);
-app.get('/story', story.getStory);
+// actual routes TBD
+app.post('/submit', story.createStory);
+app.post('/view', story.getStoriesInBox);
 
 // example payload: {coord: {lat: 5, lng: 50}}
 app.post('/test-middleware', validationMiddleware.isValidCoordinate, db.getTest);
