@@ -5,6 +5,7 @@ FROM golang:latest
 LABEL maintainer="Jacob Diaz <cjdiaz98@gmail.com>"
 
 # Set the Current Working Directory inside the container
+ENV GOPATH /app
 WORKDIR /app
 
 # Copy everything from the current directory to the Working Directory inside the container
@@ -17,4 +18,4 @@ RUN go build -o main .
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["./main"]
+CMD ["./geoproxy"]
