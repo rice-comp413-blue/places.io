@@ -1,6 +1,6 @@
 import React from 'react';
-import Feed from '../Feed/Feed';
-import Form from '../Feed/Form';
+import Feed from './Feed/Feed';
+import Form from './Feed/Form';
 import { SegmentedControl } from 'segmented-control'
 
 
@@ -18,7 +18,7 @@ const Sidebar = (props) => {
                 setValue={newMode => updateMode(newMode)}
                 style={{ width: '100%', color: '#2980b9', marginLeft: '1em' }} // purple400
             />
-            {props.mode === 'view' ? <Feed elements={feed}/> : <Form/>}
+            {props.mode === 'view' ? <Feed elements={feed} /> : <Form curLatLng={props.curLatLng}></Form>}
         </div>
     )
 };

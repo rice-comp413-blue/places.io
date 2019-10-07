@@ -25,11 +25,13 @@ class MainApp extends React.Component {
     }
 
     render() {
+
         console.log('CURRENT LAT LNG: ', this.state.curLatLng);
+        const curLatLng = [this.state.curLatLng.lat, this.state.curLatLng.lng];
         return (
             <Row>
                 <Col md={3}>
-                    <Sidebar mode={this.state.mode} updateModeFunc={this.updateModeFunc.bind(this)} />
+                    <Sidebar curLatLng={curLatLng} mode={this.state.mode} updateModeFunc={this.updateModeFunc.bind(this)} />
                 </Col>
                 <Col md={9}>
                     <MapView mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)} />
