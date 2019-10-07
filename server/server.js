@@ -4,6 +4,7 @@ const cors = require('cors');
 const db = require('./queries');
 const story = require('./controllers/storyController');
 const validationMiddleware = require('./middleware/validation');
+const upload = require('./models/s3')
 
 const app = express();
 const port = 3000;
@@ -34,4 +35,9 @@ app.post('/test-middleware', validationMiddleware.isValidCoordinate, db.getTest)
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
+});
+
+app.post('/submit-story-image', upload.single('file'), function(req, res, next) {
+  let url = res.req.file.location;
+  res.send('Successfully uploaded files! File in s3 bucket at ' + url);
 });
