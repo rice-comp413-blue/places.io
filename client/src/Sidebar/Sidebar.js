@@ -16,11 +16,12 @@ const Sidebar = (props) => {
                     { label: "Submit", value: "submit" },
                 ]}
                 setValue={newMode => updateMode(newMode)}
-                style={{ width: '100%', color: '#2980b9', marginLeft: '1em' }} // purple400
+                style={{ width: '100%', color: '#2980b9' }} // purple400
             />
-            {props.mode === 'view' ? <Feed elements={feed} /> : <Form curLatLng={props.curLatLng}></Form>}
+            {props.mode === 'view' ? <Feed elements={feed} /> : <Form updateLatLngFunc={props.updateLatLngFunc.bind(this)} curLatLng={props.curLatLng}></Form>}
         </div>
     )
+
 };
 
 export default Sidebar;

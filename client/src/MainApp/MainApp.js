@@ -11,8 +11,8 @@ class MainApp extends React.Component {
         this.state = {
             mode: 'view',
             curLatLng: {
-                lat: 0,
-                lng: 0
+                lat: null,
+                lng: null
             }
         };
     }
@@ -31,7 +31,8 @@ class MainApp extends React.Component {
         return (
             <Row>
                 <Col md={3}>
-                    <Sidebar curLatLng={curLatLng} mode={this.state.mode} updateModeFunc={this.updateModeFunc.bind(this)} />
+                    <Sidebar curLatLng={curLatLng} mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)}
+                        updateModeFunc={this.updateModeFunc.bind(this)} />
                 </Col>
                 <Col md={9}>
                     <MapView mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)} />
