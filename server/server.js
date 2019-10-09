@@ -27,7 +27,8 @@ app.get('/test', db.getTest);
 app.post('/test', db.postTest);
 
 // actual routes TBD
-app.post('/submit', story.createStory);
+app.post('/submit', upload.single('file'), story.createStory);
+
 app.post('/view', story.getStoriesInBox);
 
 // example payload: {coord: {lat: 5, lng: 50}}
@@ -35,9 +36,4 @@ app.post('/test-middleware', validationMiddleware.isValidCoordinate, db.getTest)
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
-});
-
-app.post('/submit-story-image', upload.single('file'), function(req, res, next) {
-  let url = res.req.file.location;
-  res.send('Successfully uploaded files! File in s3 bucket at ' + url);
 });

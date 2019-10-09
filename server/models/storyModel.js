@@ -1,4 +1,5 @@
 const pool = require('./db');
+const upload = require('./s3');
 // coordinate (required) [lat, lng]
 // timestamp (required, in UTC) string
 // text (optional) string
@@ -11,10 +12,10 @@ class Story {
         this.coordinate = story.coordinate;
         this.timestamp = story.timestamp;
         this.text = story.text;
-        this.image = story.image;
     }
 
     static createStory(story, result) {
+        console.log(story.coordinate);
         pool.query("INSERT INTO stories " +
             "(lat, lng, timestamp, text) values " +
             "($1, $2, $3, $4)",
@@ -27,7 +28,6 @@ class Story {
                     result(null, record.insertId);
                 }
             });
-        // TODO: storing img in S3
     }
 }
 
