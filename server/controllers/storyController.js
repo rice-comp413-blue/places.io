@@ -22,13 +22,12 @@ const createStory = (req, res) => {
             res.status(404).json(err.toString());
             throw err;
         } else {
-            // if (req.file) {
-            //     let url = req.file.location;
-            //     res.status(200).send('Successfully posted a story with image. Image in s3 bucket at ' + url);
-            // } else {
-            //     res.status(200).send('Successfully posted a story without image.');
-            // }
-            res.status(200).send('Successfully posted a story without image.');
+            if (req.file) {
+                let url = req.file.location;
+                res.status(200).send('Successfully posted a story with image. Image in s3 bucket at ' + url);
+            } else {
+                res.status(200).send('Successfully posted a story without image.');
+            }
         }
     });
 };

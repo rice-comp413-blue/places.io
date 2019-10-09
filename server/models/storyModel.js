@@ -1,5 +1,4 @@
 const pool = require('./db');
-const upload = require('./s3');
 // coordinate (required) [lat, lng]
 // timestamp (required, in UTC) string
 // text (optional) string
@@ -15,7 +14,6 @@ class Story {
     }
 
     static createStory(story, result) {
-        console.log(story.coordinate);
         pool.query("INSERT INTO stories " +
             "(lat, lng, timestamp, text) values " +
             "($1, $2, $3, $4)",
