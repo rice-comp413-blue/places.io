@@ -11,6 +11,12 @@ WORKDIR /app
 # Copy everything from the current directory to the Working Directory inside the container
 COPY . .
 
+SHELL ["/bin/bash", "-c"]
+ENV PORT "1330"
+ENV A_CONDITION_URL "http://localhost:1331"
+ENV B_CONDITION_URL "http://localhost:1332"
+ENV DEFAULT_CONDITION_URL "http://localhost:1333"
+
 # Build the Go app
 RUN go build -o main .
 
@@ -18,4 +24,4 @@ RUN go build -o main .
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["./geoproxy"]
+CMD ["./main"]
