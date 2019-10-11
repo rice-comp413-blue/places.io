@@ -14,8 +14,11 @@ const getStoriesInBox = (req, res) => {
 };
 
 const createStory = (req, res) => {
-
     let newStory = new storyModel(req.body);
+
+    if (req.file) {
+        newStory.updateImageFlag(true)
+    }
 
     storyModel.createStory(newStory, function (err, record) {
         if (err) {
