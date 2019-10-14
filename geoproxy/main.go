@@ -1,5 +1,7 @@
 package main
 
+
+
 import (
 	"bytes"
 	"encoding/json"
@@ -11,6 +13,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"fmt"
 )
 
 var data = map[int]map[int]string{}
@@ -144,16 +147,40 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = url.Host
 
+	enableCors(&res)
+
+
+	//Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
+	if (*req).Method == "OPTIONS" {
+		return
+	}
+
+
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
+//Header to allow for CORS access
+func enableCors(w *http.ResponseWriter) {
+	//This should be fine for GET requests
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+
+	//Extra handling for POST requests
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+    (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+
+	fmt.Printf("Request received\n")
 	requestPayload := parseRequestBody(req)
 	url := getProxyUrl(requestPayload.Lat, requestPayload.Lng)
+
+	fmt.Printf("Conditional url attained\n")
 	logRequestPayload(requestPayload, url)
 
+	fmt.Printf("Request served to reverse proxy\n")
 	serveReverseProxy(url, res, req)
 }
 
@@ -161,6 +188,8 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
+
+	fmt.Printf("Map set up\n")
 
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
