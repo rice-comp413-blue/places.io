@@ -1,5 +1,5 @@
 const {Pool} = require('pg')
-const Auth = require('./connection.js')
+const Auth = require('./connection.js').db_auth
 
 const pool = new Pool(Auth)
 
