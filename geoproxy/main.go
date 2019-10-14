@@ -11,10 +11,35 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 )
 
-var data = map[int]map[int]string{}
-var sorted_lat []int
+// Coord struct represents the lat-lng coordinate
+type Coord struct {
+	Lat, Lng float64
+}
+
+// Key struct is for map pointing to correct server
+type CoordRange struct {
+	Low, High float64
+}
+
+// View request passes top-left and bottom-right coords
+// "latlng1": [20, 0],
+// "latlng2": [0, 80]
+type viewRequestPayloadStruct struct {
+	LatLng1 string `json:"latlng1"`
+	LatLng2 string `json:"latlng2"`
+}
+
+// Submit request passes the coord to post
+// "coordinate": [-20, -20]
+type submitRequestPayloadStruct struct {
+	LatLng string `json:"coordinate"`
+}
+
+// 2D map of LatCoordRange:LngCoordRange:ServerURL
+var data = map[CoordRange]map[CoordRange]string{}
 
 // Get env var or default
 func getEnv(key, fallback string) string {
@@ -56,12 +81,6 @@ func setupMap() {
 	data[90][180] = "B_CONDITION_URL"
 }
 
-type requestPayloadStruct struct {
-	// Replace with lat-long param
-	Lat string `json:"lat"`
-	Lng string `json:"lng"`
-}
-
 // Get a json decoder for a given requests body
 func requestBodyDecoder(request *http.Request) *json.Decoder {
 	// Read body to buffer
@@ -78,11 +97,25 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 	return json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(body)))
 }
 
-// Parse the requests body
-func parseRequestBody(request *http.Request) requestPayloadStruct {
+// Parse the view requests body
+func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
 
-	var requestPayload requestPayloadStruct
+	var requestPayload viewRequestPayloadStruct
+	err := decoder.Decode(&requestPayload)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return requestPayload
+}
+
+// Parse the submit requests body
+func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
+	decoder := requestBodyDecoder(request)
+
+	var requestPayload submitRequestPayloadStruct
 	err := decoder.Decode(&requestPayload)
 
 	if err != nil {
@@ -97,37 +130,90 @@ func logRequestPayload(requestionPayload requestPayloadStruct, proxyUrl string) 
 	log.Printf("lat: %s, lng: %s, proxy_url: %s\n", requestionPayload.Lat, requestionPayload.Lng, proxyUrl)
 }
 
-// Get the url for a given lat and long pair
-func getProxyUrl(latRaw string, lngRaw string) string {
-	lat1, err1 := strconv.ParseFloat(latRaw, 32)
-	lng1, err2 := strconv.ParseFloat(lngRaw, 32)
-	lat := float32(lat1)
-	lng := float32(lng1)
+// Given string in form [0.0, 0.0], create and return coord struct
+func parseCoord(coord string) Coord {
+	splitCoord := strings.Split(coord, ",")
+	// We should have "[0.0", "0.0]"
+	if len(splitCoord) != 2 {
+		log.Printf("Error: Coordinate passed into json request should be of form [0.0, 0.0].")
+		return nil
+	} else {
+		coord0 := []rune(splitCoord[0])
+		coord1 := []rune(splitCoord[1])
 
-	default_condtion_url := os.Getenv("DEFAULT_CONDITION_URL")
+		lat, errLat := strconv.ParseFloat(string(lat[1:len(splitCoord[0])]), 64)
+		lng, errLng := strconv.ParseFloat(string(lat[0:len(splitCoord[0])-1]), 64)
 
-	if err1 != nil || err2 != nil {
-		log.Printf("Error: Invalid lat-long pair.")
-		return default_condtion_url
+		if errLat != nil || errLng != nil {
+			log.Printf("Error: Invalid lat-long coordinate.")
+			return nil
+		}
+		// var parsedCoord = Coord{lat, lng}
+		return Coord{lat, lng}
 	}
 
-	// Lat-long mapping logic to get the env
-	for l1 := range sorted_lat {
-		if lat < float32(l1) {
-			var sorted_lng []int
-			for l2 := range data[l1] {
-			    sorted_lng = append(sorted_lng, l2)
-			}
-			sort.Ints(sorted_lng)
-			for l2 := range sorted_lng {
-				if lng < float32(l2) {
-					return os.Getenv(data[l1][l2])
+}
+
+// Get the url(s) for given coordinates of view request
+func getViewProxyUrl(rawCoord1 string, rawCoord2 string) string[] {
+	var urls strings[]
+
+	// Parse each coord
+	topLeft := parseCoord(rawCoord1)
+	bottomRight := parseCoord(rawCoord2)
+
+	// Add all urls of zones that touch the box of the coords
+	// This means that we check if the 
+	for latRange := range data {
+		if topLeft.Lat < latRange.high && bottomRight.Lat >= latRange.High {
+			for lngRange := range data[latRange] {
+				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
+					// TODO: Check doc
+					urls = append(urls, os.Getenv(data[latRange][lngRange]))
+					break
 				}
 			}
+			break
 		}
 	}
+	if len(urls) == 0 {
+		// ERROR: Lat-lng coordinate not in range
+		// TODO: Throw error message and possibly error url
+		urls = append(urls, os.Getenv("DEFAULT_CONDITION_URL"))
+	}
 
-	return default_condtion_url
+	return urls
+}
+
+// Get the url(s) for given coordinates of view request
+func getViewProxyUrl(rawCoord1 string, rawCoord2 string) string[] {
+	var urls strings[]
+
+	for rawCoord := range rawCoords {
+		// Parse each coord
+		coord := parseCoord(rawCoord)
+		// Lookup coord in data map
+		for latRange := range data {
+			if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
+				for lngRange := range data[latRange] {
+					if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
+						// TODO: Check doc
+						urls = append(urls, os.Getenv(data[latRange][lngRange]))
+						break
+					}
+				}
+				break
+			}
+		}
+
+	}
+	if len(urls) == 0 {
+		// ERROR: Lat-lng coordinate not in range
+		// TODO: Throw error message and possibly error url
+		urls = append(urls, os.Getenv("DEFAULT_CONDITION_URL"))
+	}
+
+	return urls
 }
 
 // Serve a reverse proxy for a given url
@@ -150,11 +236,23 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	requestPayload := parseRequestBody(req)
-	url := getProxyUrl(requestPayload.Lat, requestPayload.Lng)
-	logRequestPayload(requestPayload, url)
+	var rawCoords string[]
+	// TODO: Look at header to see if view or submit
 
-	serveReverseProxy(url, res, req)
+	// View request
+	requestPayload := parseViewRequestBody(req)
+	rawCoords[0] = requestPayload.LatLng1
+	rawCoords[1] = requestPayload.LatLng2
+
+	// Submit request
+	requestPayload := parseSubmitRequestBody(req)
+	rawCoords[0] = requestPayload.LatLng
+
+	urls := getProxyUrl(rawCoords)
+	// logRequestPayload(requestPayload, url)
+	for url : range urls {
+		serveReverseProxy(url, res, req)
+	}
 }
 
 func main() {
