@@ -38,6 +38,6 @@ If you are having trouble with either of these tools, reach out in the [#infrast
 
 ### Usage
 
-
+Use `git crypt lock` before committing and `git crypt unlock` after pulling to update the secrets files. 
 
 The `application` user credentials should be sourced from `secrets.json` for all AWS API interaction.   
