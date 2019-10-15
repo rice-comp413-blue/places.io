@@ -11,8 +11,8 @@ class Box {
     }
 
     static getStoriesInBox(box, result) {
-        pool.query("SELECT * FROM story where " +
-            "lat <= $1 and lat >= $2 and long <= $3 and long >= $4 " +
+        pool.query("SELECT * FROM stories where " +
+            "lat <= $1 and lat >= $2 and lng <= $3 and lng >= $4 " +
             "ORDER BY timestamp DESC LIMIT 10",
             [box.latlng1[0], box.latlng2[0], box.latlng2[1], box.latlng1[1]],
             (err, record) => {

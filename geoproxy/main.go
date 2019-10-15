@@ -1,18 +1,15 @@
 package main
 
-
-
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -72,15 +69,16 @@ func logSetup() {
 
 // Setups the mapping to servers
 func setupMap() {
-	// Map will map lat-long ranges to env strings
+	// Map will map lat-long to env strings
 	// latitude: (-90, 90) longitude: (-180, 180)
-	cr1 := CoordRange{-90, 0}
-	cr2 := CoordRange{0, 90}
-	cr3 := CoordRange{-180, 180}
-	data[cr1] = map[CoordRange]string{}
-	data[cr2] = map[CoordRange]string{}
-	data[cr1][cr3] = "A_CONDITION_URL"
-	data[cr2][cr3] = "B_CONDITION_URL"
+	data[0] = map[int]string{}
+	data[90] = map[int]string{}
+	// sorted_lat keeps track of latitude keys in order to sort them
+	sorted_lat = append(sorted_lat, 0)
+	sorted_lat = append(sorted_lat, 90)
+	sort.Ints(sorted_lat)
+	data[0][180] = "A_CONDITION_URL"
+	data[90][180] = "B_CONDITION_URL"
 }
 
 // Get a json decoder for a given requests body
@@ -127,87 +125,95 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	return requestPayload
 }
 
-// Log the view typeform payload and redirect url
-func logViewRequestPayload(requestionPayload viewRequestPayloadStruct, proxyUrl string) {
-	log.Printf("latlng1: %s, latlng2: %s, proxy_url: %s\n", requestionPayload.LatLng1, requestionPayload.LatLng2, proxyUrl)
-}
-
-// Log the submit typeform payload and redirect url
-func logSubmitRequestPayload(requestionPayload submitRequestPayloadStruct, proxyUrl string) {
-	log.Printf("coordinate: %s, proxy_url: %s\n", requestionPayload.LatLng, proxyUrl)
+// Log the typeform payload and redirect url
+func logRequestPayload(requestionPayload requestPayloadStruct, proxyUrl string) {
+	log.Printf("lat: %s, lng: %s, proxy_url: %s\n", requestionPayload.Lat, requestionPayload.Lng, proxyUrl)
 }
 
 // Given string in form [0.0, 0.0], create and return coord struct
 func parseCoord(coord string) Coord {
 	splitCoord := strings.Split(coord, ",")
-	// We should have someething like {"[0.0", "0.0]"}
+	// We should have "[0.0", "0.0]"
 	if len(splitCoord) != 2 {
-		// Returning error coord of 360, 360 for now
 		log.Printf("Error: Coordinate passed into json request should be of form [0.0, 0.0].")
-		return Coord{360, 360}
+		return nil
 	} else {
 		coord0 := []rune(splitCoord[0])
 		coord1 := []rune(splitCoord[1])
 
-		lat, errLat := strconv.ParseFloat(string(coord0[1:len(splitCoord[0])]), 64)
-		lng, errLng := strconv.ParseFloat(string(coord1[0:len(splitCoord[1])-1]), 64)
+		lat, errLat := strconv.ParseFloat(string(lat[1:len(splitCoord[0])]), 64)
+		lng, errLng := strconv.ParseFloat(string(lat[0:len(splitCoord[0])-1]), 64)
 
 		if errLat != nil || errLng != nil {
 			log.Printf("Error: Invalid lat-long coordinate.")
-			return Coord{360, 360}
+			return nil
 		}
+		// var parsedCoord = Coord{lat, lng}
 		return Coord{lat, lng}
 	}
-}
 
-func rangesOverlap(start1 float64, end1 float64, start2 float64, end2 float64) bool {
-	return math.Min(end1, end2) >= math.Max(start1, start2)
 }
 
 // Get the url(s) for given coordinates of view request
-func getViewProxyUrl(rawCoord1 string, rawCoord2 string) map[string]bool {
-	// Acts as a set of urls
-	urls := make(map[string]bool)
+func getViewProxyUrl(rawCoord1 string, rawCoord2 string) string[] {
+	var urls strings[]
 
 	// Parse each coord
 	topLeft := parseCoord(rawCoord1)
 	bottomRight := parseCoord(rawCoord2)
 
 	// Add all urls of zones that touch the box of the coords
+	// This means that we check if the 
 	for latRange := range data {
-		if rangesOverlap(topLeft.Lat, bottomRight.Lat, latRange.Low, latRange.High) {
+		if topLeft.Lat < latRange.high && bottomRight.Lat >= latRange.High {
 			for lngRange := range data[latRange] {
-				if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange.Low, lngRange.High) {
-					fmt.Printf("Found something")
-					// Check if we have already added url
-					urlString := os.Getenv(data[latRange][lngRange])
-					// url, exists := urls[urlString]
-					if !urls[urlString] {
-						urls[urlString] = true
-					}
+				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
+					// TODO: Check doc
+					urls = append(urls, os.Getenv(data[latRange][lngRange]))
+					break
 				}
 			}
+			break
 		}
+	}
+	if len(urls) == 0 {
+		// ERROR: Lat-lng coordinate not in range
+		// TODO: Throw error message and possibly error url
+		urls = append(urls, os.Getenv("DEFAULT_CONDITION_URL"))
 	}
 
 	return urls
 }
 
-// Get the url for given coordinates of submit request
-func getSubmitProxyUrl(rawCoord string) string {
-	coord := parseCoord(rawCoord)
-	// Lookup coord in data map
-	for latRange := range data {
-		if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
-			for lngRange := range data[latRange] {
-				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
-					return os.Getenv(data[latRange][lngRange])
+// Get the url(s) for given coordinates of view request
+func getViewProxyUrl(rawCoord1 string, rawCoord2 string) string[] {
+	var urls strings[]
+
+	for rawCoord := range rawCoords {
+		// Parse each coord
+		coord := parseCoord(rawCoord)
+		// Lookup coord in data map
+		for latRange := range data {
+			if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
+				for lngRange := range data[latRange] {
+					if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
+						// TODO: Check doc
+						urls = append(urls, os.Getenv(data[latRange][lngRange]))
+						break
+					}
 				}
+				break
 			}
 		}
+
+	}
+	if len(urls) == 0 {
+		// ERROR: Lat-lng coordinate not in range
+		// TODO: Throw error message and possibly error url
+		urls = append(urls, os.Getenv("DEFAULT_CONDITION_URL"))
 	}
 
-	return os.Getenv("DEFAULT_CONDITION_URL")
+	return urls
 }
 
 // Serve a reverse proxy for a given url
@@ -224,54 +230,28 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = url.Host
 
-	enableCors(&res)
-
-
-	//Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
-	if (*req).Method == "OPTIONS" {
-		return
-	}
-
-
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
-//Header to allow for CORS access
-func enableCors(w *http.ResponseWriter) {
-	//This should be fine for GET requests
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-
-	//Extra handling for POST requests
-	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-    (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-}
-
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	
-	if strings.Contains(req.URL.Path, "view") {
-		// View request
-		fmt.Printf("View request received\n")
-		requestPayload := parseViewRequestBody(req)
-		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
-		fmt.Printf("Conditional url(s) attained\n")
-		for url := range urls {
-			logViewRequestPayload(requestPayload, url)
-			fmt.Printf("View request served to reverse proxy\n")
-			serveReverseProxy(url, res, req)
-		}
-	} else if strings.Contains(req.URL.Path, "submit") {
-		// Submit request
-		fmt.Printf("Submit request received\n")
-		requestPayload := parseSubmitRequestBody(req)
-		url := getSubmitProxyUrl(requestPayload.LatLng)
-		fmt.Printf("Conditional url attained\n")
-		logSubmitRequestPayload(requestPayload, url)
-		fmt.Printf("Submit request served to reverse proxy\n")
+	var rawCoords string[]
+	// TODO: Look at header to see if view or submit
+
+	// View request
+	requestPayload := parseViewRequestBody(req)
+	rawCoords[0] = requestPayload.LatLng1
+	rawCoords[1] = requestPayload.LatLng2
+
+	// Submit request
+	requestPayload := parseSubmitRequestBody(req)
+	rawCoords[0] = requestPayload.LatLng
+
+	urls := getProxyUrl(rawCoords)
+	// logRequestPayload(requestPayload, url)
+	for url : range urls {
 		serveReverseProxy(url, res, req)
-	} else {
-		fmt.Printf("Unrecognized request received\n")
 	}
 }
 
@@ -279,8 +259,6 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-
-	fmt.Printf("Map set up\n")
 
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
