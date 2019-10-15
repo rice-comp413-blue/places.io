@@ -38,4 +38,6 @@ If you are having trouble with either of these tools, reach out in the [#infrast
 
 ### Usage
 
+
+
 The `application` user credentials should be sourced from `secrets.json` for all AWS API interaction.   
