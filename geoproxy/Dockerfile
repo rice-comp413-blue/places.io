@@ -18,10 +18,10 @@ ENV B_CONDITION_URL "http://localhost:1332"
 ENV DEFAULT_CONDITION_URL "http://localhost:1333"
 
 # Build the Go app
-RUN go build -o main .
+RUN go build -o geoproxy .
 
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["./main"]
+CMD ["./geoproxy"]

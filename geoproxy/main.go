@@ -13,7 +13,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -28,21 +27,27 @@ type CoordRange struct {
 }
 
 // View request passes top-left and bottom-right coords
-// "latlng1": [20, 0],
-// "latlng2": [0, 80]
+// "latlng1": [2.5, -10.3],
+// "latlng2": [0, 80.5]
 type viewRequestPayloadStruct struct {
-	LatLng1 string `json:"latlng1"`
-	LatLng2 string `json:"latlng2"`
+	LatLng1 []float64 `json:"latlng1"`
+	LatLng2 []float64 `json:"latlng2"`
 }
 
 // Submit request passes the coord to post
-// "coordinate": [-20, -20]
+// "coordinate": [-20.3, 60]
 type submitRequestPayloadStruct struct {
-	LatLng string `json:"coordinate"`
+	LatLng []float64 `json:"coordinate"`
 }
 
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
 var data = map[CoordRange]map[CoordRange]string{}
+
+// Error coord
+var ERROR_COORD = Coord{360, 360}
+
+// Error url
+var ERROR_URL = "ERROR"
 
 // Get env var or default
 func getEnv(key, fallback string) string {
@@ -129,49 +134,72 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 
 // Log the view typeform payload and redirect url
 func logViewRequestPayload(requestionPayload viewRequestPayloadStruct, proxyUrl string) {
-	log.Printf("latlng1: %s, latlng2: %s, proxy_url: %s\n", requestionPayload.LatLng1, requestionPayload.LatLng2, proxyUrl)
+	log.Printf("latlng1: %v, latlng2: %v, proxy_url: %s\n", requestionPayload.LatLng1, requestionPayload.LatLng2, proxyUrl)
 }
 
 // Log the submit typeform payload and redirect url
 func logSubmitRequestPayload(requestionPayload submitRequestPayloadStruct, proxyUrl string) {
-	log.Printf("coordinate: %s, proxy_url: %s\n", requestionPayload.LatLng, proxyUrl)
+	log.Printf("coordinate: %v, proxy_url: %s\n", requestionPayload.LatLng, proxyUrl)
 }
 
-// Given string in form [0.0, 0.0], create and return coord struct
-func parseCoord(coord string) Coord {
-	splitCoord := strings.Split(coord, ",")
-	// We should have someething like {"[0.0", "0.0]"}
-	if len(splitCoord) != 2 {
-		// Returning error coord of 360, 360 for now
-		log.Printf("Error: Coordinate passed into json request should be of form [0.0, 0.0].")
-		return Coord{360, 360}
-	} else {
-		coord0 := []rune(splitCoord[0])
-		coord1 := []rune(splitCoord[1])
-
-		lat, errLat := strconv.ParseFloat(string(coord0[1:len(splitCoord[0])]), 64)
-		lng, errLng := strconv.ParseFloat(string(coord1[0:len(splitCoord[1])-1]), 64)
-
-		if errLat != nil || errLng != nil {
-			log.Printf("Error: Invalid lat-long coordinate.")
-			return Coord{360, 360}
-		}
-		return Coord{lat, lng}
+// Given float array in form [0.0, 0.0], create and return coord struct
+func parseCoord(coord []float64) Coord {
+	if len(coord) != 2 {
+		fmt.Printf("Error: Coordinate passed into json request should be of form [0.0, 0.0]\n")
+		return ERROR_COORD
 	}
+
+	if coord[0] < -90 || coord[0] > 90 {
+		fmt.Printf("Error: Latitude should be in range [-90, 90]\n")
+		return ERROR_COORD
+	}
+
+	if coord[1] < -180 || coord[1] > 180 {
+		fmt.Printf("Error: Longitude should be in range [-180, 180]\n")
+		return ERROR_COORD
+	}
+
+	return Coord{coord[0], coord[1]}
 }
 
 func rangesOverlap(start1 float64, end1 float64, start2 float64, end2 float64) bool {
 	return math.Min(end1, end2) >= math.Max(start1, start2)
 }
 
+// Get url for a coord of request. We may not need this anymore after changing logic to 
+// get multiple proxy urls for view requests (just move logic back to getSubmitProxyUrl)
+func getProxyURL(coord Coord) string {
+	for latRange := range data {
+		if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
+			for lngRange := range data[latRange] {
+				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
+					return os.Getenv(data[latRange][lngRange])
+				}
+			}
+		}
+	}
+	return ERROR_URL
+}
+
 // Get the url(s) for given coordinates of view request
-func getViewProxyUrl(rawCoord1 string, rawCoord2 string) map[string]bool {
+func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 	// Acts as a set of urls
 	urls := make(map[string]bool)
 
 	// Parse each coord
 	topLeft := parseCoord(rawCoord1)
 	bottomRight := parseCoord(rawCoord2)
+
+	if topLeft == ERROR_COORD || bottomRight == ERROR_COORD {
+		urls[ERROR_URL] = true
+		return urls
+	}
+
+	if topLeft.Lat > bottomRight.Lat || topLeft.Lng > bottomRight.Lng {
+		fmt.Printf("Error: latlng1 should be top left and latlng2 should be bottom right of the coord box\n")
+		urls[ERROR_URL] = true
+		return urls
+	}
 
 	// **Commented out to test with only one server associated with midpoint for now**
 	// *******************************************************************************
@@ -194,36 +222,20 @@ func getViewProxyUrl(rawCoord1 string, rawCoord2 string) map[string]bool {
 
 	coord := Coord{(topLeft.Lat + bottomRight.Lat) / 2, (topLeft.Lng + bottomRight.Lng) / 2}
 
-	for latRange := range data {
-		if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
-			for lngRange := range data[latRange] {
-				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
-					urls[os.Getenv(data[latRange][lngRange])] = true
-					break
-				}
-			}
-			break
-		}
-	}
+	urls[getProxyURL(coord)] = true
 
 	return urls
 }
 
 // Get the url for given coordinates of submit request
-func getSubmitProxyUrl(rawCoord string) string {
+func getSubmitProxyUrl(rawCoord []float64) string {
 	coord := parseCoord(rawCoord)
-	// Lookup coord in data map
-	for latRange := range data {
-		if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
-			for lngRange := range data[latRange] {
-				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
-					return os.Getenv(data[latRange][lngRange])
-				}
-			}
-		}
+
+	if coord == ERROR_COORD {
+		return ERROR_URL
 	}
 
-	return os.Getenv("DEFAULT_CONDITION_URL")
+	return getProxyURL(coord)
 }
 
 // Serve a reverse proxy for a given url
@@ -242,12 +254,10 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 
 	enableCors(&res)
 
-
 	//Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
 	if (*req).Method == "OPTIONS" {
 		return
 	}
-
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
@@ -265,15 +275,24 @@ func enableCors(w *http.ResponseWriter) {
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		fmt.Printf("View request received\n")
 		requestPayload := parseViewRequestBody(req)
 		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
 		fmt.Printf("Conditional url(s) attained\n")
+
+		// We are only looking for one server associated with midpoint right now
+		if len(urls) != 1 {
+			log.Printf("Warning: Should have only one url for view request right now")
+		}
+
 		for url := range urls {
 			logViewRequestPayload(requestPayload, url)
+			if url == ERROR_URL {
+				fmt.Printf("Error: Could not send request due to incorrect request body\n")
+				return
+			}
 			fmt.Printf("View request served to reverse proxy\n")
 			serveReverseProxy(url, res, req)
 		}
@@ -284,6 +303,12 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		url := getSubmitProxyUrl(requestPayload.LatLng)
 		fmt.Printf("Conditional url attained\n")
 		logSubmitRequestPayload(requestPayload, url)
+
+		if url == ERROR_URL {
+			fmt.Printf("Error: Could not send request due to incorrect request body\n")
+			return
+		}
+		
 		fmt.Printf("Submit request served to reverse proxy\n")
 		serveReverseProxy(url, res, req)
 	} else {
