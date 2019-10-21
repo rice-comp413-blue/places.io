@@ -20,7 +20,7 @@ class MapView extends React.Component {
         });
     }
     handleClick(e) {
-        this.props.updateLatLngFunc({ lat: e.latlng.lat, lng: e.latlng.lng });
+        this.props.updateLatLngFunc({ lat: e.latlng.wrap().lat, lng: e.latlng.wrap().lng });
     }
     handleViewClick() {
         const southWestBounds = this.map.leafletElement.getBounds().getSouthWest().wrap();
@@ -28,7 +28,7 @@ class MapView extends React.Component {
         const upperLeft = [northEastBounds.lat, southWestBounds.lng].map(x => Number(x));
         const bottomRight = [southWestBounds.lat, northEastBounds.lng].map(x => Number(x));
 
-        console.log(upperLeft, bottomRight);
+        // console.log('query ... ', upperLeft, bottomRight);
         //  query view
         RequestHelper.queryViewBoundingBox(upperLeft, bottomRight)
             .then(res => {
@@ -41,7 +41,7 @@ class MapView extends React.Component {
     render() {
 
         return (
-            <Map ref={(ref) => { this.map = ref; }} onClick={this.handleClick.bind(this)} center={[29.749907, -95.358421]} zoom={10}
+            <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={[29.749907, -95.358421]} zoom={10}
                 style={{ height: '90vh', width: '100%' }}>
                 <TileLayer
                     attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
@@ -50,7 +50,7 @@ class MapView extends React.Component {
 
                 {this.props.mode === 'view' && this.state.currentZoom > 6 ?
                     <Control position="topright" >
-                        <Button onClick={() => this.handleViewClick.bind(this)}>
+                        <Button onClick={this.handleViewClick.bind(this)}>
                             Query
                         </Button>
                     </Control>
