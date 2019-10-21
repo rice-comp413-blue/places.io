@@ -11,10 +11,13 @@ class MapView extends React.Component {
 
         this.map.leafletElement.on('moveend', () => {
             if (this.props.mode === 'view') {
-                const bounds = this.map.leafletElement.getBounds();
-                const upperLeft = [bounds['_northEast'].lat, bounds['_southWest'].lng].map(x => Number(x));
-                const bottomRight = [bounds['_southWest'].lat, bounds['_northEast'].lng].map(x => Number(x));
+                // console.log(this.map)
+                const southWestBounds = this.map.leafletElement.getBounds().getSouthWest().wrap();
+                const northEastBounds = this.map.leafletElement.getBounds().getNorthEast().wrap();
+                const upperLeft = [northEastBounds.lat, southWestBounds.lng].map(x => Number(x));
+                const bottomRight = [southWestBounds.lat, northEastBounds.lng].map(x => Number(x));
 
+                // console.log(upperLeft, bottomRight);
                 //  query view
                 RequestHelper.queryViewBoundingBox(upperLeft, bottomRight)
                     .then(res => {
