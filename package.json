@@ -1,0 +1,30 @@
+{
+  "name": "places.io",
+  "version": "1.0.0",
+  "description": "COMP 413 Blue Team Fall 2019 Project",
+  "main": "setup.js",
+  "dependencies": {},
+  "devDependencies": {
+    "run-script-os": "^1.0.7"
+  },
+  "scripts": {
+    "setup": "npm run setup:aws;",
+    "setup:aws": "run-script-os",
+    "setup:aws:macos": "./setup-aws.sh macos",
+    "setup:aws:linux": "./setup-aws.sh linux",
+    "aws:ecs:config": "ecs-cli configure --cluster $1 --default-launch-type EC2 --config-name $1 --region $2",
+    "aws:ecs:create": "ecs-cli up --keypair id_rsa --capability-iam --size 2 --instance-type t2.medium --cluster-config $1 --ecs-profile $USER",
+    "aws:ecs:deploy": "ecs-cli compose up --create-log-groups --cluster-config $1 --ecs-profile $USER",
+    "aws:ecs:view": "ecs-cli ps --cluster-config $1 --ecs-profile $USER"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rice-comp413-blue/places.io.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rice-comp413-blue/places.io/issues"
+  },
+  "homepage": "https://github.com/rice-comp413-blue/places.io#readme"
+}
