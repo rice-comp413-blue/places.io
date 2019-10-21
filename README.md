@@ -22,22 +22,12 @@ Use `apt install git-crypt` on linux or `brew install git-crypt` on mac.
 
 Create an account on keybase and generate a PGP key.
 
-Import the keybase key: 
+Import the keybase key to your local gpg keychain (see this [article](https://www.keybits.net/post/import-keybase-private-key/)).
 
-`curl https://keybase.io/<keybase_username>/pgp_keys.asc | gpg --import`
+Give someone on the infrastructure team your keybase username (not email) and they will add your public key to git crypt.
 
-Trust the key with gpg (ultimate):
-
-`gpg --edit-key <keybase_email>`
-
-`git-crypt add-gpg-user <keybase_email>`
-
-Create a pull request with the changes to `.git-crypt`. Assign someone from the infrastructure team and ping them for a review.
-
-If you are having trouble with either of these tools, reach out in the [#infrastructure](https://blueteam-comp413.slack.com/messages/CNN0P23B6) channel.
+If you are having trouble with any of these tools, reach out in the [#infrastructure](https://blueteam-comp413.slack.com/messages/CNN0P23B6) channel.
 
 ### Usage
 
 Use `git crypt lock` before committing and `git crypt unlock` after pulling to update the secrets files. 
-
-The `application` user credentials should be sourced from `secrets.json` for all AWS API interaction.   
