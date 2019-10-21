@@ -38,6 +38,21 @@ If you are having trouble with either of these tools, reach out in the [#infrast
 
 ### Usage
 
-
-
 The `application` user credentials should be sourced from `secrets.json` for all AWS API interaction.   
+
+# AWS
+
+Use `npm run aws:setup -- <platform>` to setup AWS utilities. Valid platforms include `linux` and `macos`. 
+
+
+## ECS
+
+Use `npm run aws:newkey -- <region>` to create an RSA key pair.
+
+Use `npm run aws:ecs:config -- <cluster_name> <region>` to configure an ECS cluster.
+
+Use `npm run aws:ecs:create -- <cluster_name> <key_region>` to create the configured ECS cluster.
+
+Use `npm run aws:ecs:deploy -- <cluster_name>` to deploy the docker compose definition in the current directory to the ECS cluster.
+
+Use `npm run aws:ecs:view -- <cluster_name` to view running containers on the ECS cluster.

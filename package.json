@@ -5,17 +5,16 @@
   "main": "setup.js",
   "dependencies": {},
   "devDependencies": {
-    "run-script-os": "^1.0.7"
+    "run-script-os": "^1.0.7",
+    "scripty": "^1.9.1"
   },
   "scripts": {
-    "setup": "npm run setup:aws;",
-    "setup:aws": "run-script-os",
-    "setup:aws:macos": "./setup-aws.sh macos",
-    "setup:aws:linux": "./setup-aws.sh linux",
-    "aws:ecs:config": "ecs-cli configure --cluster $1 --default-launch-type EC2 --config-name $1 --region $2",
-    "aws:ecs:create": "ecs-cli up --keypair id_rsa --capability-iam --size 2 --instance-type t2.medium --cluster-config $1 --ecs-profile $USER",
-    "aws:ecs:deploy": "ecs-cli compose up --create-log-groups --cluster-config $1 --ecs-profile $USER",
-    "aws:ecs:view": "ecs-cli ps --cluster-config $1 --ecs-profile $USER"
+    "aws:setup": "scripty",
+    "aws:createkey": "scripty",
+    "aws:ecs:config": "scripty",
+    "aws:ecs:create": "scripty",
+    "aws:ecs:deploy": "scripty",
+    "aws:ecs:view": "scripty"
   },
   "repository": {
     "type": "git",

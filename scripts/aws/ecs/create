@@ -1,0 +1,2 @@
+KEYNAME="$USER"-"$2"-key
+ecs-cli up --keypair "$KEYNAME" --capability-iam --size 2 --instance-type t2.medium --cluster-config "$1" "$3"
