@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+        "flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -114,7 +115,8 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	if err != nil {
 		panic(err)
 	}
-
+	fmt.Println("Printing view payload")
+        fmt.Printf("%+v\n",requestPayload)
 	return requestPayload
 }
 
@@ -238,6 +240,17 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 	return getProxyURL(coord)
 }
 
+func serveOptions(res http.ResponseWriter, req *http.Request) {
+        enableCors(&res)
+	//Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
+	if (*req).Method == "OPTIONS" {
+		// Have to serve preflight -- don't forward the request to the server.
+		res.WriteHeader(200)
+		fmt.Printf("Handling OPTIONS")
+		return 
+	}
+}
+
 // Serve a reverse proxy for a given url
 func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
 	// parse the url
@@ -252,12 +265,7 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = url.Host
 
-	enableCors(&res)
-
-	//Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
-	if (*req).Method == "OPTIONS" {
-		return
-	}
+	// enableCors(&res)
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
@@ -265,6 +273,9 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 
 //Header to allow for CORS access
 func enableCors(w *http.ResponseWriter) {
+	if verbose {
+	fmt.Println("Enabling CORS")
+	}
 	//This should be fine for GET requests
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -275,6 +286,10 @@ func enableCors(w *http.ResponseWriter) {
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+	if (*req).Method == "OPTIONS" {
+		serveOptions(res, req)
+		return
+	}
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		fmt.Printf("View request received\n")
@@ -303,7 +318,6 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		url := getSubmitProxyUrl(requestPayload.LatLng)
 		fmt.Printf("Conditional url attained\n")
 		logSubmitRequestPayload(requestPayload, url)
-
 		if url == ERROR_URL {
 			fmt.Printf("Error: Could not send request due to incorrect request body\n")
 			return
@@ -316,12 +330,19 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+var verbose bool
+
 func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-
-	fmt.Printf("Map set up\n")
+	verbPtr := flag.Bool("v", false, "a bool")
+	flag.Parse()
+	verbose=*verbPtr
+	if verbose {
+		fmt.Println("verbose mode")
+	    fmt.Printf("Map set up\n")
+	}
 
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
