@@ -23,11 +23,11 @@ At this point, the geoproxy is run in a container and should be ready to receive
 
 Currently all the appropriate environment preparations (setting environment variables) are done in the Dockerfile. It's in this environment preparation that we specify the URLs to which we'll be redirecting requests. 
 
-##Concurrency:
+## Concurrency:
 It's our understanding that proxy.ServeHTTP(res, req) is non-blocking. 
 Concurrency hasn't been a huge priority for us so far, so we will verify this when we get the chance. 
 
-##Running Without Docker
+## Running Without Docker
 In order to run the geoproxy outside of a container, make sure that you've downloaded Golang
 
 run 
