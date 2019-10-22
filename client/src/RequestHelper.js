@@ -1,15 +1,29 @@
 import axios from 'axios';
 const RequestHelper = {
     queryViewBoundingBox: (upperLeft, bottomRight) => {
-        return axios.post('', JSON.stringify({ latlng1: upperLeft, latlng2: bottomRight }));
+        //  hardcoe URLS for now, will switch to use a config later
+        return axios.post('http://localhost:1330/view',
+            { latlng1: upperLeft, latlng2: bottomRight },
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
     },
     submitPlace: (text, coordinate) => {
-        // {
-        //     "text": "helloworld6",
-        //     "coordinate": [-20, -20],
-        //     "timestamp": "2019-10-05T11:22:52.000Z"
-        // }
-        return axios.post('', JSON.stringify({ text, coordinate, timestamp: new Date() }));
+
+        return axios.post('http://localhost:1330/submit',
+            {
+                text,
+                coordinate,
+                timestamp: new Date()
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
     }
 }
 export default RequestHelper;

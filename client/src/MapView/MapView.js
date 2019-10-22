@@ -1,6 +1,6 @@
 import React from 'react';
 import '../App.css';
-import { Map, TileLayer } from 'react-leaflet';
+import { Map, TileLayer, Marker, Popup } from 'react-leaflet';
 import RequestHelper from '../RequestHelper';
 import Control from 'react-leaflet-control';
 import Button from 'react-bootstrap/Button';
@@ -10,7 +10,8 @@ class MapView extends React.Component {
         super(props);
         this.map = undefined;
         this.state = {
-            currentZoom: 10
+            currentZoom: 10,
+            markers: []
         };
     }
     componentDidMount() {
@@ -32,7 +33,7 @@ class MapView extends React.Component {
         //  query view
         RequestHelper.queryViewBoundingBox(upperLeft, bottomRight)
             .then(res => {
-                console.log(res);
+                this.setState({ markers: res.data });
                 //  TODO: update shared state so that Sidebar can display results
                 //  TODO: update markers for display on map
             })
@@ -47,7 +48,16 @@ class MapView extends React.Component {
                     attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-
+                {this.state.markers.map(marker => {
+                    return (
+                        <Marker
+                            key={marker.storyid}
+                            position={[marker.lat, marker.long]}>
+                            <Popup>
+                                Description:<br /> {marker.text}
+                            </Popup>
+                        </Marker>)
+                })}
                 {this.props.mode === 'view' && this.state.currentZoom > 6 ?
                     <Control position="topright" >
                         <Button onClick={this.handleViewClick.bind(this)}>
