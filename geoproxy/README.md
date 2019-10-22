@@ -7,14 +7,14 @@ https://hackernoon.com/writing-a-reverse-proxy-in-just-one-line-with-go-c1edfa78
 ## Containerization/Running in a Docker Container:
 This directory contains everything necessary to build and run the proxy in a container. All one has to do is to first build the image by doing:
 
-'''
+```
 docker build -t [image name] .
-'''
+```
 
 Then run the image:
-'''
+```
 docker run -d -p [incoming port]:1330 [image name]
-'''
+```
 
 Where you specify [image name]
 And [incoming port] is a port on the machine that is open to TCP requests. This can be configured in the AWS security group inbound rules. Depending on what you want, you can allow that port to receive requests from your IP address only, a specific IP, or all IP addresses
@@ -31,19 +31,19 @@ Concurrency hasn't been a huge priority for us so far, so we will verify this wh
 In order to run the geoproxy outside of a container, make sure that you've downloaded Golang
 
 run 
-'''
+```
 source .env
-'''
+```
 to load the environment variables that'll be used by the geoproxy
 
 First, run to build:
-'''
+```
 go build -o geoproxy .
-'''
+```
 
 Finally run the proxy with:
-'''
+```
 ./geoproxy
-'''
+```
 
 By default the geoproxy will listen to port 1330. You can change the default port in the .env file. 
