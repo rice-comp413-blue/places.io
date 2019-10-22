@@ -12,9 +12,9 @@ docker build -t [image name] .
 ```
 
 Then run the image:
-```
-docker run -d -p [incoming port]:1330 [image name]
-```
+
+docker run -p [incoming port]:1330 [image name]
+(you can also run with the -d flag, but I advise against it so that you can see the geoproxy's logs)
 
 Where you specify [image name]
 And [incoming port] is a port on the machine that is open to TCP requests. This can be configured in the AWS security group inbound rules. Depending on what you want, you can allow that port to receive requests from your IP address only, a specific IP, or all IP addresses
