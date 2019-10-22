@@ -1,7 +1,5 @@
 package main
 
-
-
 import (
 	"bytes"
 	"encoding/json"
@@ -166,7 +164,7 @@ func rangesOverlap(start1 float64, end1 float64, start2 float64, end2 float64) b
 	return math.Min(end1, end2) >= math.Max(start1, start2)
 }
 
-// Get url for a coord of request. We may not need this anymore after changing logic to 
+// Get url for a coord of request. We may not need this anymore after changing logic to
 // get multiple proxy urls for view requests (just move logic back to getSubmitProxyUrl)
 func getProxyURL(coord Coord) string {
 	for latRange := range data {
@@ -195,7 +193,7 @@ func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 		return urls
 	}
 
-	if topLeft.Lat > bottomRight.Lat || topLeft.Lng > bottomRight.Lng {
+	if topLeft.Lat < bottomRight.Lat || topLeft.Lng > bottomRight.Lng {
 		fmt.Printf("Error: latlng1 should be top left and latlng2 should be bottom right of the coord box\n")
 		urls[ERROR_URL] = true
 		return urls
@@ -252,29 +250,36 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = url.Host
 
-	enableCors(&res)
+	// enableCors(&res)
 
-	//Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
-	if (*req).Method == "OPTIONS" {
-		return
-	}
+	// //Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
+	// if (*req).Method == "OPTIONS" {
+	// 	return
+	// }
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
-//Header to allow for CORS access
+// Enable cors for response to pre-flight
 func enableCors(w *http.ResponseWriter) {
-	//This should be fine for GET requests
+	//  allow CORS
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 
-	//Extra handling for POST requests
+	//  Allow these headers in client's response to pre-flight response
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-    (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+	//  handle pre-flight request from browser
+	if req.Method == "OPTIONS" {
+		fmt.Printf("Preflight request received\n")
+		enableCors(&res)
+		res.WriteHeader(http.StatusOK)
+		return
+	}
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		fmt.Printf("View request received\n")
@@ -308,7 +313,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			fmt.Printf("Error: Could not send request due to incorrect request body\n")
 			return
 		}
-		
+
 		fmt.Printf("Submit request served to reverse proxy\n")
 		serveReverseProxy(url, res, req)
 	} else {
