@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	"io/ioutil"
 	"log"
 	"math"
@@ -38,6 +39,9 @@ type viewRequestPayloadStruct struct {
 // "coordinate": [-20.3, 60]
 type submitRequestPayloadStruct struct {
 	LatLng []float64 `json:"coordinate"`
+}
+
+type requestHandler struct {
 }
 
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
@@ -274,7 +278,7 @@ func enableCors(w *http.ResponseWriter) {
 }
 
 // Given a request send it to the appropriate url
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		fmt.Printf("View request received\n")
@@ -322,9 +326,12 @@ func main() {
 	setupMap()
 
 	fmt.Printf("Map set up\n")
-
+	rh := &requestHandler{}
 	// start server
-	http.HandleFunc("/", handleRequestAndRedirect)
+	//noGz := http.HandlerFunc(handleRequestAndRedirect)
+	// TODO: what if the client sending the request doesn't support gzip? what do we do in this case?
+	gzHandleFunc := gziphandler.GzipHandler(rh)
+	http.Handle("/", gzHandleFunc)
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
 	}
