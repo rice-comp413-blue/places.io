@@ -10,7 +10,7 @@
   },
   "scripts": {
     "aws:setup": "scripty",
-    "aws:createkey": "scripty",
+    "aws:ecs:newkey": "scripty",
     "aws:ecs:config": "scripty",
     "aws:ecs:create": "scripty",
     "aws:ecs:deploy": "scripty",
