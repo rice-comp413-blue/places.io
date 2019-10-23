@@ -333,8 +333,9 @@ func main() {
 	fmt.Printf("Map set up\n")
 	rh := &requestHandler{}
 	// start server
-	//noGz := http.HandlerFunc(handleRequestAndRedirect)
-	// TODO: what if the client sending the request doesn't support gzip? what do we do in this case?
+
+	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header. 
+	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
 	http.Handle("/", gzHandleFunc)
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
