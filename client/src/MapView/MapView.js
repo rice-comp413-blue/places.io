@@ -4,7 +4,7 @@ import { Map, TileLayer, Marker, Popup } from 'react-leaflet';
 import RequestHelper from '../RequestHelper';
 import Control from 'react-leaflet-control';
 import Button from 'react-bootstrap/Button';
-
+import MockEndpoints from '../MockEndpoints/MockEndpoints';
 class MapView extends React.Component {
     constructor(props) {
         super(props);
@@ -29,11 +29,19 @@ class MapView extends React.Component {
         const upperLeft = [northEastBounds.lat, southWestBounds.lng].map(x => Number(x));
         const bottomRight = [southWestBounds.lat, northEastBounds.lng].map(x => Number(x));
 
-        // console.log('query ... ', upperLeft, bottomRight);
         //  query view
-        RequestHelper.queryViewBoundingBox(upperLeft, bottomRight)
+        // RequestHelper.queryViewBoundingBox(upperLeft, bottomRight)
+        //     .then(res => {
+        //         this.setState({ markers: res.data });
+        //         //  TODO: update shared state so that Sidebar can display results
+        //         //  TODO: update markers for display on map
+        //     })
+        //     .catch(err => console.log(err));
+
+        MockEndpoints.view(upperLeft, bottomRight)
             .then(res => {
-                this.setState({ markers: res.data });
+                console.log(res)
+                this.setState({ markers: res });
                 //  TODO: update shared state so that Sidebar can display results
                 //  TODO: update markers for display on map
             })
@@ -54,7 +62,7 @@ class MapView extends React.Component {
                             key={marker.storyid}
                             position={[marker.lat, marker.long]}>
                             <Popup>
-                                Description:<br /> {marker.text}
+                                <h5>Description</h5><br /> {marker.text}
                             </Popup>
                         </Marker>)
                 })}
