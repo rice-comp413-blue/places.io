@@ -6,15 +6,17 @@ const pool = require('./db');
 class Box {
     // Box object constructor
     constructor(box) {
-        this.latlng1 = box.latlng1;
-        this.latlng2 = box.latlng2;
+        this.lat1 = box.lat1;
+        this.lng1 = box.lng1;
+        this.lat2 = box.lat2;
+        this.lng2 = box.lng2;
     }
 
     static getStoriesInBox(box, result) {
         pool.query("SELECT * FROM story where " +
             "lat <= $1 and lat >= $2 and long <= $3 and long >= $4 " +
             "ORDER BY timestamp DESC LIMIT 10",
-            [box.latlng1[0], box.latlng2[0], box.latlng2[1], box.latlng1[1]],
+            [box.lat1, box.lat2, box.lng2, box.lng1],
             (err, record) => {
                 if (err) {
                     console.log("error: ", err);
