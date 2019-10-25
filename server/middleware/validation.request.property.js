@@ -16,7 +16,7 @@ var validSubmitRequestBody = (req, res, next) => {
     if (req.body.hasOwnProperty("coordinate") 
         && req.body.hasOwnProperty("timestamp") 
         && (req.body.hasOwnProperty("text") || req.body.hasOwnProperty("image"))
-        && validLatLng.validLatLng(req.body.coordinate)) {
+        && validLatLng.validLatLng([req.body.lat, req.body.lng])) {
         return next();
     } else {
         return res.status(400).send("Invalid request body.")
