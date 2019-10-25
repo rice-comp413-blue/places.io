@@ -12,20 +12,26 @@ class Story {
         this.coordinate = story.coordinate;
         this.timestamp = story.timestamp;
         this.text = story.text;
+        // TODO: this is prob not the right way to handle this, discuss a fix for this
         this.hasimage = false;
+        this.image_url = "";
     }
 
     updateImageFlag(flag) {
         this.hasimage = flag;
     }
 
+    updateImageUrl(url) {
+        this.image_url = url;
+    }
+
     static createStory(story, result) {
 
         pool.query("INSERT INTO story " +
-            "(storyid, lat, long, timestamp, text, hasimage) values " +
-            "($1, $2, $3, $4, $5, $6)",
+            "(storyid, lat, long, timestamp, text, hasimage, image_url) values " +
+            "($1, $2, $3, $4, $5, $6, $7)",
             [story.storyid, story.coordinate[0], story.coordinate[1],
-                story.timestamp, story.text, story.hasimage],
+                story.timestamp, story.text, story.hasimage, story.image_url],
             function (err, record) {
                 if (err) {
                     console.log("error: ", err);
