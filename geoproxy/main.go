@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 // Coord struct represents the lat-lng coordinate
@@ -321,6 +322,44 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// This function is called on a timer and pings both
+// servers with a GET request. A 302 response is expected
+// but not yet explicity checked
+func checkHealth(ticker *time.Ticker, done chan bool) {
+	//Reference for ticker code: 
+    for {
+        select {
+        //Is there any case we want this ticker to stop? Leaving for now in case
+       	// we want to modify this
+        case <-done:
+            return
+        //case t := <-ticker.C:
+        case  <-ticker.C:
+        	client := &http.Client{
+        		//Reference here for redirect code: https://jonathanmh.com/tracing-preventing-http-redirects-golang/ 
+			    CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			      return http.ErrUseLastResponse
+			  } }
+			fmt.Println("HEALTH CHECK")
+
+			_, err := client.Get(os.Getenv("A_CONDITION_URL"))
+
+
+			//What should we do if we run into an error? Right now just printing it
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
+
+			if err2 != nil {
+				fmt.Println(err2)
+			}
+        }
+    }
+
+}
+
 func main() {
 	// Log setup values
 	logSetup()
@@ -330,6 +369,12 @@ func main() {
 
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
+
+	//Initialize ticker + channel + run in parallel
+	ticker := time.NewTicker(5000 * time.Millisecond)
+    done := make(chan bool)
+    go checkHealth(ticker, done)
+
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
 	}
