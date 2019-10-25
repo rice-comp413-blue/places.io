@@ -2,7 +2,7 @@ const validLatLng = require("./validation.latlng");
 
 var validViewRequestBody = (req, res, next) => {
     if (req.body.hasOwnProperty("latlng1") && req.body.hasOwnProperty("latlng2") 
-        && validLatLng(req.body.latlng1) && validLatLng(req.body.latlng2)) {
+        && validLatLng.validLatLng(req.body.latlng1) && validLatLng.validLatLng(req.body.latlng2)) {
         return next();
     } else {
         return res.status(400).send("Invalid request body.");
