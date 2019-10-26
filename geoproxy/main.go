@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 // Coord struct represents the lat-lng coordinate
@@ -22,6 +23,16 @@ type Coord struct {
 // Key struct is for map pointing to correct server
 type CoordRange struct {
 	Low, High float64
+}
+
+// Post struct for server response to view
+type Post struct {
+	StoryID 	string 		`json:"storyid"`
+	Timestamp 	time.Time 	`json:"timestamp"`
+	Lat 		float64 	`json:"lat"`
+	Lng 		float64 	`json:"long"`
+	Text 		string 		`json:"text"`
+	HasImage 	bool 		`json:"hasimage"`
 }
 
 // View request passes top-left and bottom-right coords
