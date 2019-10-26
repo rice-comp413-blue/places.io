@@ -15,7 +15,7 @@ class Story {
         this.text = story.text;
         // TODO: this is prob not the right way to handle this, discuss a fix for this
         this.hasimage = false;
-        this.image_url = "";
+        this.image_url = story.image_url;
     }
 
     updateImageFlag(flag) {
