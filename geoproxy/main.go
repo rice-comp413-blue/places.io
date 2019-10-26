@@ -127,6 +127,16 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	return requestPayload
 }
 
+// Call this after receiving server response to view for posts
+func getPosts(body []byte) ([]Post, error) {
+	var posts []Post
+    err := json.Unmarshal(body, &posts)
+    if(err != nil){
+        log.Printf("Error parsing server response: %v", err)
+    }
+    return posts, err
+}
+
 // Parse the submit requests body
 func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
