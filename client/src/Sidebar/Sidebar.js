@@ -6,7 +6,6 @@ import { SegmentedControl } from 'segmented-control'
 
 const Sidebar = (props) => {
     const updateMode = (newMode) => props.updateModeFunc(newMode);
-    // const feed = ['This', 'is', 'the', 'feed'];
     return (
         <div>
             <SegmentedControl
