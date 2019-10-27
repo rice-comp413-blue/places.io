@@ -1,10 +1,16 @@
 import React from 'react';
 
 const FeedItem = (props) => {
-    <div>
-        ID: {props.story.id}
-        Text: {props.story.text}
-        Location: ({props.story.lat}, {props.story.long})
-        Time: {props.story.time}
-    </div>
+    return (
+        <div>
+            <p>------------------------</p>
+            <p>ID: {props.story.storyid}</p>
+            <p>Text: {props.story.text}</p>
+            <p>Location: ({props.story.lat}, {props.story.long})</p>
+            <p>Timestamp: {props.story.timestamp.toString()}</p>
+            <p>------------------------</p>
+        </div>
+    );
 };
+
+export default FeedItem

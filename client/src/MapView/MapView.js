@@ -42,6 +42,7 @@ class MapView extends React.Component {
             .then(res => {
                 console.log(res)
                 this.setState({ markers: res });
+                this.props.updateFeedFunc(res)
                 //  TODO: update shared state so that Sidebar can display results
                 //  TODO: update markers for display on map
             })
