@@ -1,11 +1,7 @@
 import React from 'react';
 import Form from 'react-bootstrap/Form';
-
 import RequestHelper from '../../RequestHelper';
-
-
 import Button from 'react-bootstrap/Button';
-
 
 export default class CustomForm extends React.Component {
     constructor(props) {
@@ -35,10 +31,11 @@ export default class CustomForm extends React.Component {
     render() {
         return (
             <div>
-                <div>Current Location: {this.props.curLatLng[0]} {this.props.curLatLng[1]}</div>
+                {this.curLatLngSelected() ? <div>Selected point: {this.props.curLatLng[0]} {this.props.curLatLng[1]}</div> : <p>Select a point on the map for your new story.</p>}
+                
                 <Form>
                     <Form.Group >
-                        <Form.Label>Description</Form.Label>
+                        {/* <Form.Label>Description:</Form.Label> */}
                         <Form.Control
                             value={this.state.description}
                             onChange={this.updateDescription.bind(this)}
