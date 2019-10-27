@@ -5,7 +5,7 @@ const MockEndpoints = {
         const results = [];
         const textInputs = ["Hey, I'm at Rice!", "What's up guys?", "Check out my story"];
         for (let i = 0; i < 10; i++) {
-            const text = textInputs[i % textInputs.length];
+            const text = textInputs[_.random(0, textInputs.length)];
             results.push({
                 storyid: i,
                 lat: _.random(upperLeft[0], bottomRight[0], true),
