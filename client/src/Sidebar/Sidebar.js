@@ -7,7 +7,7 @@ import { SegmentedControl } from 'segmented-control'
 const Sidebar = (props) => {
     const updateMode = (newMode) => props.updateModeFunc(newMode);
     return (
-        <div>
+        <div className="sidebar">
             <SegmentedControl
                 name="modeToggle"
                 options={[

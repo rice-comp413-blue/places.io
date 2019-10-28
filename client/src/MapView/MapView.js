@@ -54,7 +54,7 @@ class MapView extends React.Component {
             <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={[29.749907, -95.358421]} zoom={10}
                 style={{ height: '90vh', width: '100%' }}>
                 <TileLayer
-                    attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                    attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 {this.state.markers.map(marker => {

@@ -23,6 +23,11 @@
 
 .feedItem {
   border: 1px solid grey;
-  margin:10px;
+  margin: 10px;
   border-radius: 10px;
+}
+
+.sidebar {
+  height: 90vh;
+  overflow-y: auto;
 }
