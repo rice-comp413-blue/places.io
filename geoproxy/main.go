@@ -48,6 +48,18 @@ var ERROR_COORD = Coord{360, 360}
 // Error url
 var ERROR_URL = "ERROR"
 
+//Coordinate ranges
+var cr1 = CoordRange{-90, 0}
+var cr2 = CoordRange{0, 90}
+var cr3 = CoordRange{-180, 180}
+
+
+//Boolean to check if servers are up
+//If we have more than 2 conditional urls we probably want to make this
+//some sort of map, but this should be fine for now
+var pingA = true
+var pingB = true
+
 // Get env var or default
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
@@ -78,13 +90,20 @@ func logSetup() {
 func setupMap() {
 	// Map will map lat-long ranges to env strings
 	// latitude: (-90, 90) longitude: (-180, 180)
-	cr1 := CoordRange{-90, 0}
-	cr2 := CoordRange{0, 90}
-	cr3 := CoordRange{-180, 180}
+	
 	data[cr1] = map[CoordRange]string{}
 	data[cr2] = map[CoordRange]string{}
 	data[cr1][cr3] = "A_CONDITION_URL"
 	data[cr2][cr3] = "B_CONDITION_URL"
+}
+
+func modifyMap(conditional int) {
+	if conditional == 0 {
+		data[cr1][cr3] = "B_CONDITION_URL"
+	} else if (conditional == 1) {
+		data[cr2][cr3] = "A_CONDITION_URL"
+	}
+
 }
 
 // Get a json decoder for a given requests body
@@ -342,19 +361,32 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 			  } }
 			fmt.Println("HEALTH CHECK")
 
-			_, err := client.Get(os.Getenv("A_CONDITION_URL"))
+			if (pingA) {
+				_, err := client.Get(os.Getenv("A_CONDITION_URL"))
+				
 
+				//What should we do if we run into an error? Right now just printing it
+				if err != nil {
+					fmt.Println(err)
+					modifyMap(0)
+					pingA = false
+				}
 
-			//What should we do if we run into an error? Right now just printing it
-			if err != nil {
-				fmt.Println(err)
 			}
 
-			_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
 
-			if err2 != nil {
-				fmt.Println(err2)
+			
+			if (pingB) {
+				_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
+
+				if err2 != nil {
+					fmt.Println(err2)
+					modifyMap(1)
+					pingB = false
+				}
 			}
+
+			
         }
     }
 
