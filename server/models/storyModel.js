@@ -15,7 +15,7 @@ class Story {
         this.text = story.text;
         // TODO: this is prob not the right way to handle this, discuss a fix for this
         this.hasimage = false;
-        this.image_url = story.image_url;
+        this.image_url = null;
     }
 
     updateImageFlag(flag) {
@@ -27,7 +27,6 @@ class Story {
     }
 
     static createStory(story, result) {
-
         pool.query("INSERT INTO story " +
             "(storyid, lat, long, timestamp, text, hasimage, image_url) values " +
             "($1, $2, $3, $4, $5, $6, $7)",
