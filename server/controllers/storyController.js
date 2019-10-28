@@ -18,7 +18,6 @@ const createStory = (req, res) => {
 
     // TODO: is this necessary? need to investigate how a failed s3 upload works
     if (req.file) {
-        newStory.updateImageFlag(true);
         newStory.updateImageUrl(req.file.location);
     }
 

@@ -26,6 +26,8 @@ app.get('/', (request, response) => {
 app.get('/test', db.getTest);
 app.post('/test', db.postTest);
 
+app.get('/health', (req, res) => res.status(200).send());
+
 // actual routes TBD
 // app.post('/submit', validationMiddleware.validSubmitRequestProperties, upload.single('file'), story.createStory);
 app.post('/submit', upload.single('file'), story.createStory);
