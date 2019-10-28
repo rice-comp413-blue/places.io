@@ -37,3 +37,5 @@ app.post('/test-middleware', validationMiddleware.validSubmitRequestProperties, 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
 });
+
+module.exports = app;
