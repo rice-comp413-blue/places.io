@@ -1,5 +1,6 @@
 const storyModel = require('../models/storyModel');
 const boxModel = require('../models/boxModel');
+const healthModel = require('../models/healthModel');
 
 const getStoriesInBox = (req, res) => {
     let newBox = new boxModel(req.body);
@@ -36,7 +37,19 @@ const createStory = (req, res) => {
     });
 };
 
+const healthStory = (req, res) => {
+    healthModel.getHealth(function (err, record) {
+        if (err) {
+            res.status(404).json(err.toString());
+            throw err;
+        } else {
+            res.status(200).json(record.rows);
+        }
+    })
+};
+
 module.exports = {
     createStory,
-    getStoriesInBox
+    getStoriesInBox,
+    healthStory
 };
