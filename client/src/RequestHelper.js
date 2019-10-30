@@ -1,4 +1,5 @@
 import axios from 'axios';
+import FormData from 'form-data';
 const RequestHelper = {
     queryViewBoundingBox: (upperLeft, bottomRight) => {
         //  hardcoe URLS for now, will switch to use a config later
@@ -12,6 +13,12 @@ const RequestHelper = {
         );
     },
     submitPlace: (text, coordinate) => {
+        // console.log(coordinate);
+        // const form = new FormData();
+        // form.append('text', text);
+        // form.append('lat', coordinate[0])
+        // form.append('long', coordinate[1]);
+        // form.append('timestamp', new Date());
 
         return axios.post('http://localhost:1330/submit',
             {

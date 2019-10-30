@@ -32,7 +32,7 @@ export default class CustomForm extends React.Component {
         return (
             <div>
                 {this.curLatLngSelected() ? <div>Selected point: {this.props.curLatLng[0]} {this.props.curLatLng[1]}</div> : <p>Select a point on the map for your new story.</p>}
-                
+
                 <Form>
                     <Form.Group >
                         {/* <Form.Label>Description:</Form.Label> */}
@@ -42,6 +42,16 @@ export default class CustomForm extends React.Component {
                             type="text"
                             placeholder="Enter a description" />
                     </Form.Group>
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Upload</span>
+                        </div>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="inputGroupFile01" />
+                            <label class="custom-file-label" for="inputGroupFile01">Choose file</label>
+                        </div>
+                    </div>
+
                     <Button
                         disabled={!this.curLatLngSelected()}
                         variant="primary"
