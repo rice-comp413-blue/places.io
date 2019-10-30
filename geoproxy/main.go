@@ -62,7 +62,9 @@ var cr3 = CoordRange{-180, 180}
 var pingA = true
 var pingB = true
 
-var entriesToServe = 10 // Currently hard-coded. Todo: do we want to take this in from the client or something?
+var timeout float64 = 1
+
+var entriesToServe = 10 // Currently hard-coded. do we want to take this in from the client or something?
 
 // Map of UUID to mutex. Each mutex regulates access to heap corresponding to same UUID
 var requestMutexMap = map[uuid.UUID]sync.Mutex
@@ -333,7 +335,6 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			responseCount = responseCount + 1
 			urlArray = append(urlArray, url)
 		}
-		// TODO: grab the mutex. alter the maps
 		mapMutex.Lock()
 		queryMap[id] = make(PriorityQueue, entriesToServe)
 		responsesMap[id] = responseCount
@@ -341,8 +342,16 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		mapMutex.Unlock()
 
 		// TODO: where do we add the timeout callback?
-		
-		// TODO: need to add the uuid field to the request
+		// https://gobyexample.com/timeouts
+
+			
+		select {
+			case res := <-c1:
+				fmt.Println(res)
+			case <-time.After(timeout * time.Second):
+				fmt.Println("timeout 1")
+		}
+
 		serveReverseProxy(urlArray, res, req)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
@@ -455,7 +464,6 @@ func serveResponseThenCleanup(id uuid.UUID) {
 	multiServerMapCleanup(id)
 	
 	// serve the request to the client
-	
 }
 
 func multiServerMapCleanup(id uuid.UUID) {
