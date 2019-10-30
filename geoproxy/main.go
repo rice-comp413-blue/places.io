@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+var verbose = false
+
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
 	Lat, Lng float64
@@ -408,9 +410,8 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-	verbPtr := flag.Bool("v", false, "a bool")
+	flag.BoolVar(&verbose,"v", false, "a bool")
 	flag.Parse()
-	verbose=*verbPtr
 	if verbose {
 		fmt.Println("verbose mode")
 	    fmt.Printf("Map set up\n")
