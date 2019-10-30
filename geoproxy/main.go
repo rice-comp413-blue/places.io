@@ -14,6 +14,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Coord struct represents the lat-lng coordinate
@@ -115,7 +117,7 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 		panic(err)
 	}
 
-	// Because go lang is a pain in the ass if you read the body then any susequent calls
+	// Because go lang is a pain in the ass if you read the body then any subsequent calls
 	// are unable to read the body again....
 	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
@@ -238,8 +240,32 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request) {
+// TODO include uuid as an argument
+func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, editBody bool) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	// Read body to buffer
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		return
+	}
+	buff := bytes.NewBuffer(body)
+
+	if editBody {
+		// Edit request body to include id
+		bodyStr := buff.String()
+		// This is where we want to insert the id param
+		i := strings.LastIndex(bodyStr, "\n}")
+		// Convert to runes to split
+		runes := []rune(bodyStr)
+		// Left side string of \n}
+		leftStr := string(runes[0:i])
+		buff = bytes.NewBufferString(leftStr)
+		// Concatenate new id param and request body remainder
+		// TODO replace uuid new with passed in uuid
+		buff.WriteString(",\n  \"id\": " + uuid.New().String())
+		buff.WriteString(string(runes[i:len(runes)]))
+	}
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
@@ -249,8 +275,10 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// create the reverse proxy
 		proxy := httputil.NewSingleHostReverseProxy(url)
 
+		newReqBody := ioutil.NopCloser(buff)
+
 		// reusing requests is unreliable, so copy to new request
-		newReq, err := http.NewRequest(req.Method, target[i], req.Body)
+		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
 		if err != nil {
 			log.Printf("Error creating new request: %v", err)
 			continue
@@ -268,7 +296,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		newRes := httptest.NewRecorder()
 
 		// Note that ServeHttp is non blocking and uses a go routine under the hood
-		fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+		fmt.Printf("Request %s served to reverse proxy for %s\n", buff, target[i])
 		proxy.ServeHTTP(newRes, newReq)
 	}
 }
@@ -308,7 +336,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			}
 			urlArray = append(urlArray, url)
 		}
-		serveReverseProxy(urlArray, res, req)
+		serveReverseProxy(urlArray, res, req, true)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
 		fmt.Printf("Submit request received\n")
@@ -325,7 +353,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		urlArray := make([]string, 0, 1)
 		urlArray = append(urlArray, url)
 
-		serveReverseProxy(urlArray, res, req)
+		serveReverseProxy(urlArray, res, req, false)
 	} else {
 		fmt.Printf("Unrecognized request received\n")
 	}
