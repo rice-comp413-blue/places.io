@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -53,7 +54,6 @@ var cr1 = CoordRange{-90, 0}
 var cr2 = CoordRange{0, 90}
 var cr3 = CoordRange{-180, 180}
 
-
 //Boolean to check if servers are up
 //If we have more than 2 conditional urls we probably want to make this
 //some sort of map, but this should be fine for now
@@ -90,7 +90,7 @@ func logSetup() {
 func setupMap() {
 	// Map will map lat-long ranges to env strings
 	// latitude: (-90, 90) longitude: (-180, 180)
-	
+
 	data[cr1] = map[CoordRange]string{}
 	data[cr2] = map[CoordRange]string{}
 	data[cr1][cr3] = "A_CONDITION_URL"
@@ -100,7 +100,7 @@ func setupMap() {
 func modifyMap(conditional int) {
 	if conditional == 0 {
 		data[cr1][cr3] = "B_CONDITION_URL"
-	} else if (conditional == 1) {
+	} else if conditional == 1 {
 		data[cr2][cr3] = "A_CONDITION_URL"
 	}
 
@@ -208,39 +208,20 @@ func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 	topLeft := parseCoord(rawCoord1)
 	bottomRight := parseCoord(rawCoord2)
 
-	if topLeft == ERROR_COORD || bottomRight == ERROR_COORD {
-		urls[ERROR_URL] = true
-		return urls
+	for latRange := range data {
+		if rangesOverlap(topLeft.Lat, bottomRight.Lat, latRange.Low, latRange.High) {
+			for lngRange := range data[latRange] {
+				if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange.Low, lngRange.High) {
+					// Check if we have already added url
+					urlString := os.Getenv(data[latRange][lngRange])
+					// url, exists := urls[urlString]
+					if !urls[urlString] {
+						urls[urlString] = true
+					}
+				}
+			}
+		}
 	}
-
-	if topLeft.Lat < bottomRight.Lat || topLeft.Lng > bottomRight.Lng {
-		fmt.Printf("Error: latlng1 should be top left and latlng2 should be bottom right of the coord box\n")
-		urls[ERROR_URL] = true
-		return urls
-	}
-
-	// **Commented out to test with only one server associated with midpoint for now**
-	// *******************************************************************************
-	// // Add all urls of zones that touch the box of the coords
-	// for latRange := range data {
-	// 	if rangesOverlap(topLeft.Lat, bottomRight.Lat, latRange.Low, latRange.High) {
-	// 		for lngRange := range data[latRange] {
-	// 			if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange.Low, lngRange.High) {
-	// 				// Check if we have already added url
-	// 				urlString := os.Getenv(data[latRange][lngRange])
-	// 				// url, exists := urls[urlString]
-	// 				if !urls[urlString] {
-	// 					urls[urlString] = true
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// *******************************************************************************
-
-	coord := Coord{(topLeft.Lat + bottomRight.Lat) / 2, (topLeft.Lng + bottomRight.Lng) / 2}
-
-	urls[getProxyURL(coord)] = true
 
 	return urls
 }
@@ -257,28 +238,39 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
-	// parse the url
-	url, _ := url.Parse(target)
-
-	// create the reverse proxy
-	proxy := httputil.NewSingleHostReverseProxy(url)
-
-	// Update the headers to allow for SSL redirection
-	req.URL.Host = url.Host
-	req.URL.Scheme = url.Scheme
+func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	req.Host = url.Host
 
-	// enableCors(&res)
+	// Send to other servers for view request
+	for i := 0; i < len(target); i++ {
+		// parse the url
+		url, _ := url.Parse(target[i])
 
-	// //Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
-	// if (*req).Method == "OPTIONS" {
-	// 	return
-	// }
+		// create the reverse proxy
+		proxy := httputil.NewSingleHostReverseProxy(url)
 
-	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	proxy.ServeHTTP(res, req)
+		// reusing requests is unreliable, so copy to new request
+		newReq, err := http.NewRequest(req.Method, target[i], req.Body)
+		if err != nil {
+			log.Printf("Error creating new request: %v", err)
+			continue
+		}
+		// Update the headers to allow for SSL redirection
+		newReq.URL.Host = url.Host
+		newReq.URL.Scheme = url.Scheme
+		newReq.Host = url.Host
+
+		for header, values := range req.Header {
+			for _, value := range values {
+				newReq.Header.Add(header, value)
+			}
+		}
+		newRes := httptest.NewRecorder()
+
+		// Note that ServeHttp is non blocking and uses a go routine under the hood
+		fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+		proxy.ServeHTTP(newRes, newReq)
+	}
 }
 
 // Enable cors for response to pre-flight
@@ -307,20 +299,16 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
 		fmt.Printf("Conditional url(s) attained\n")
 
-		// We are only looking for one server associated with midpoint right now
-		if len(urls) != 1 {
-			log.Printf("Warning: Should have only one url for view request right now")
-		}
-
+		urlArray := make([]string, 0, len(urls))
 		for url := range urls {
 			logViewRequestPayload(requestPayload, url)
 			if url == ERROR_URL {
 				fmt.Printf("Error: Could not send request due to incorrect request body\n")
 				return
 			}
-			fmt.Printf("View request served to reverse proxy\n")
-			serveReverseProxy(url, res, req)
+			urlArray = append(urlArray, url)
 		}
+		serveReverseProxy(urlArray, res, req)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
 		fmt.Printf("Submit request received\n")
@@ -334,8 +322,10 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		fmt.Printf("Submit request served to reverse proxy\n")
-		serveReverseProxy(url, res, req)
+		urlArray := make([]string, 0, 1)
+		urlArray = append(urlArray, url)
+
+		serveReverseProxy(urlArray, res, req)
 	} else {
 		fmt.Printf("Unrecognized request received\n")
 	}
@@ -345,25 +335,24 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 // servers with a GET request. A 302 response is expected
 // but not yet explicity checked
 func checkHealth(ticker *time.Ticker, done chan bool) {
-	//Reference for ticker code: 
-    for {
-        select {
-        //Is there any case we want this ticker to stop? Leaving for now in case
-       	// we want to modify this
-        case <-done:
-            return
-        //case t := <-ticker.C:
-        case  <-ticker.C:
-        	client := &http.Client{
-        		//Reference here for redirect code: https://jonathanmh.com/tracing-preventing-http-redirects-golang/ 
-			    CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			      return http.ErrUseLastResponse
-			  } }
-			fmt.Println("HEALTH CHECK")
+	//Reference for ticker code:
+	for {
+		select {
+		//Is there any case we want this ticker to stop? Leaving for now in case
+		// we want to modify this
+		case <-done:
+			return
+		//case t := <-ticker.C:
+		case <-ticker.C:
+			client := &http.Client{
+				//Reference here for redirect code: https://jonathanmh.com/tracing-preventing-http-redirects-golang/
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					return http.ErrUseLastResponse
+				}}
+			// fmt.Println("HEALTH CHECK")
 
-			if (pingA) {
+			if pingA {
 				_, err := client.Get(os.Getenv("A_CONDITION_URL"))
-				
 
 				//What should we do if we run into an error? Right now just printing it
 				if err != nil {
@@ -374,9 +363,7 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 
 			}
 
-
-			
-			if (pingB) {
+			if pingB {
 				_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
 
 				if err2 != nil {
@@ -386,9 +373,8 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 				}
 			}
 
-			
-        }
-    }
+		}
+	}
 
 }
 
@@ -404,8 +390,8 @@ func main() {
 
 	//Initialize ticker + channel + run in parallel
 	ticker := time.NewTicker(5000 * time.Millisecond)
-    done := make(chan bool)
-    go checkHealth(ticker, done)
+	done := make(chan bool)
+	go checkHealth(ticker, done)
 
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
