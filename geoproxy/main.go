@@ -403,8 +403,12 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-
-	fmt.Printf("Map set up\n")
+	flag.BoolVar(&verbose,"v", false, "a bool")
+	flag.Parse()
+	if verbose {
+		fmt.Println("Verbose mode")
+		fmt.Printf("Map set up\n")
+	}
 	rh := &requestHandler{}
 	// start server
 
