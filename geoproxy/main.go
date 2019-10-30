@@ -5,6 +5,7 @@ import (
 	"encoding/json"
         "flag"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	"io/ioutil"
 	"log"
 	"math"
@@ -40,6 +41,9 @@ type viewRequestPayloadStruct struct {
 // "coordinate": [-20.3, 60]
 type submitRequestPayloadStruct struct {
 	LatLng []float64 `json:"coordinate"`
+}
+
+type requestHandler struct {
 }
 
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
@@ -296,7 +300,7 @@ func enableCors(w *http.ResponseWriter) {
 }
 
 // Given a request send it to the appropriate url
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
 		fmt.Printf("Preflight request received\n")
@@ -399,15 +403,15 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-	flag.BoolVar(&verbose,"v", false, "a bool")
-	flag.Parse()
-	if verbose {
-		fmt.Println("verbose mode")
-	    fmt.Printf("Map set up\n")
-	}
 
+	fmt.Printf("Map set up\n")
+	rh := &requestHandler{}
 	// start server
-	http.HandleFunc("/", handleRequestAndRedirect)
+
+	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header. 
+	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
+	gzHandleFunc := gziphandler.GzipHandler(rh)
+	http.Handle("/", gzHandleFunc)
 
 	//Initialize ticker + channel + run in parallel
 	ticker := time.NewTicker(5000 * time.Millisecond)
