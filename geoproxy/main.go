@@ -260,17 +260,6 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 	return getProxyURL(coord)
 }
 
-func serveOptions(res http.ResponseWriter, req *http.Request) {
-        enableCors(&res)
-	//Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
-	if (*req).Method == "OPTIONS" {
-		// Have to serve preflight -- don't forward the request to the server.
-		res.WriteHeader(200)
-		fmt.Printf("Handling OPTIONS")
-		return 
-	}
-}
-
 // Serve a reverse proxy for a given url
 func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
 	// parse the url
