@@ -1,7 +1,5 @@
 package main
 
-
-
 import (
 	"bytes"
 	"encoding/json"
@@ -15,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 // Coord struct represents the lat-lng coordinate
@@ -50,6 +49,18 @@ var ERROR_COORD = Coord{360, 360}
 // Error url
 var ERROR_URL = "ERROR"
 
+//Coordinate ranges
+var cr1 = CoordRange{-90, 0}
+var cr2 = CoordRange{0, 90}
+var cr3 = CoordRange{-180, 180}
+
+
+//Boolean to check if servers are up
+//If we have more than 2 conditional urls we probably want to make this
+//some sort of map, but this should be fine for now
+var pingA = true
+var pingB = true
+
 // Get env var or default
 func getEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
@@ -80,13 +91,20 @@ func logSetup() {
 func setupMap() {
 	// Map will map lat-long ranges to env strings
 	// latitude: (-90, 90) longitude: (-180, 180)
-	cr1 := CoordRange{-90, 0}
-	cr2 := CoordRange{0, 90}
-	cr3 := CoordRange{-180, 180}
+	
 	data[cr1] = map[CoordRange]string{}
 	data[cr2] = map[CoordRange]string{}
 	data[cr1][cr3] = "A_CONDITION_URL"
 	data[cr2][cr3] = "B_CONDITION_URL"
+}
+
+func modifyMap(conditional int) {
+	if conditional == 0 {
+		data[cr1][cr3] = "B_CONDITION_URL"
+	} else if (conditional == 1) {
+		data[cr2][cr3] = "A_CONDITION_URL"
+	}
+
 }
 
 // Get a json decoder for a given requests body
@@ -168,7 +186,7 @@ func rangesOverlap(start1 float64, end1 float64, start2 float64, end2 float64) b
 	return math.Min(end1, end2) >= math.Max(start1, start2)
 }
 
-// Get url for a coord of request. We may not need this anymore after changing logic to 
+// Get url for a coord of request. We may not need this anymore after changing logic to
 // get multiple proxy urls for view requests (just move logic back to getSubmitProxyUrl)
 func getProxyURL(coord Coord) string {
 	for latRange := range data {
@@ -197,7 +215,7 @@ func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 		return urls
 	}
 
-	if topLeft.Lat > bottomRight.Lat || topLeft.Lng > bottomRight.Lng {
+	if topLeft.Lat < bottomRight.Lat || topLeft.Lng > bottomRight.Lng {
 		fmt.Printf("Error: latlng1 should be top left and latlng2 should be bottom right of the coord box\n")
 		urls[ERROR_URL] = true
 		return urls
@@ -267,27 +285,32 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 
 	// enableCors(&res)
 
+	// //Need to be able to handle OPTIONS, see https://flaviocopes.com/golang-enable-cors/ for details
+	// if (*req).Method == "OPTIONS" {
+	// 	return
+	// }
+
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 	proxy.ServeHTTP(res, req)
 }
 
-//Header to allow for CORS access
+// Enable cors for response to pre-flight
 func enableCors(w *http.ResponseWriter) {
-	if verbose {
-	fmt.Println("Enabling CORS")
-	}
-	//This should be fine for GET requests
+	//  allow CORS
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 
-	//Extra handling for POST requests
+	//  Allow these headers in client's response to pre-flight response
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-    (*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
-	if (*req).Method == "OPTIONS" {
-		serveOptions(res, req)
+	//  handle pre-flight request from browser
+	if req.Method == "OPTIONS" {
+		fmt.Printf("Preflight request received\n")
+		enableCors(&res)
+		res.WriteHeader(http.StatusOK)
 		return
 	}
 	if strings.Contains(req.URL.Path, "view") {
@@ -322,7 +345,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			fmt.Printf("Error: Could not send request due to incorrect request body\n")
 			return
 		}
-		
+
 		fmt.Printf("Submit request served to reverse proxy\n")
 		serveReverseProxy(url, res, req)
 	} else {
@@ -330,7 +353,56 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-var verbose bool
+// This function is called on a timer and pings both
+// servers with a GET request. A 302 response is expected
+// but not yet explicity checked
+func checkHealth(ticker *time.Ticker, done chan bool) {
+	//Reference for ticker code: 
+    for {
+        select {
+        //Is there any case we want this ticker to stop? Leaving for now in case
+       	// we want to modify this
+        case <-done:
+            return
+        //case t := <-ticker.C:
+        case  <-ticker.C:
+        	client := &http.Client{
+        		//Reference here for redirect code: https://jonathanmh.com/tracing-preventing-http-redirects-golang/ 
+			    CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			      return http.ErrUseLastResponse
+			  } }
+			fmt.Println("HEALTH CHECK")
+
+			if (pingA) {
+				_, err := client.Get(os.Getenv("A_CONDITION_URL"))
+				
+
+				//What should we do if we run into an error? Right now just printing it
+				if err != nil {
+					fmt.Println(err)
+					modifyMap(0)
+					pingA = false
+				}
+
+			}
+
+
+			
+			if (pingB) {
+				_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
+
+				if err2 != nil {
+					fmt.Println(err2)
+					modifyMap(1)
+					pingB = false
+				}
+			}
+
+			
+        }
+    }
+
+}
 
 func main() {
 	// Log setup values
@@ -346,6 +418,12 @@ func main() {
 
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
+
+	//Initialize ticker + channel + run in parallel
+	ticker := time.NewTicker(5000 * time.Millisecond)
+    done := make(chan bool)
+    go checkHealth(ticker, done)
+
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
 	}
