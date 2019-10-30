@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+        "flag"
 	"fmt"
 	"github.com/NYTimes/gziphandler"
 	"io/ioutil"
@@ -15,6 +16,8 @@ import (
 	"strings"
 	"time"
 )
+
+var verbose = false
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -136,7 +139,8 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	if err != nil {
 		panic(err)
 	}
-
+	fmt.Println("Printing view payload")
+        fmt.Printf("%+v\n",requestPayload)
 	return requestPayload
 }
 
@@ -332,7 +336,6 @@ func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request)
 		url := getSubmitProxyUrl(requestPayload.LatLng)
 		fmt.Printf("Conditional url attained\n")
 		logSubmitRequestPayload(requestPayload, url)
-
 		if url == ERROR_URL {
 			fmt.Printf("Error: Could not send request due to incorrect request body\n")
 			return
@@ -400,8 +403,12 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-
-	fmt.Printf("Map set up\n")
+	flag.BoolVar(&verbose,"v", false, "a bool")
+	flag.Parse()
+	if verbose {
+		fmt.Println("Verbose mode")
+		fmt.Printf("Map set up\n")
+	}
 	rh := &requestHandler{}
 	// start server
 
