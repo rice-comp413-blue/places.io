@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+    "sync"
 	"time"
 )
 
@@ -44,9 +45,6 @@ type submitRequestPayloadStruct struct {
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
 var data = map[CoordRange]map[CoordRange]string{}
 
-// Map of UUID to Heap
-var queryMap = map[uuid.UUID]heap.PriorityQueue 
-
 // Error coord
 var ERROR_COORD = Coord{360, 360}
 
@@ -63,6 +61,21 @@ var cr3 = CoordRange{-180, 180}
 //some sort of map, but this should be fine for now
 var pingA = true
 var pingB = true
+
+var entriesToServe = 10 // Currently hard-coded. Todo: do we want to take this in from the client or something?
+
+// Map of UUID to mutex. Each mutex regulates access to heap corresponding to same UUID
+var requestMutexMap = map[uuid.UUID]sync.Mutex
+
+// Mutex for regulating access to below maps.
+var mapMutex = &sync.Mutex{}
+
+// Map of UUID to number of requests expected
+var responsesMap = map[uuid.UUID]int 
+
+// Following maps and mutex created to help handle forwarding of requests to multiple servers
+// Map of UUID to Heap for maintaining the entries we're sending back to client
+var queryMap = map[uuid.UUID]heap.PriorityQueue 
 
 // Get env var or default
 func getEnv(key, fallback string) string {
@@ -242,14 +255,11 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 	return getProxyURL(coord)
 }
 
+
 // Serve a reverse proxy for a given url
 func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	
-	// Create an entry in our response map
-	UUID uuid := uuid.New()
-	queryMap[uuid] = make(PriorityQueue, entriesToServe)
-
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		// parse the url
@@ -301,12 +311,17 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		return
 	}
+
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		fmt.Printf("View request received\n")
+		UUID id := uuid.New()
 		requestPayload := parseViewRequestBody(req)
 		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
 		fmt.Printf("Conditional url(s) attained\n")
+		// Create an entry in our response map
+		
+		var responseCount := 0
 
 		urlArray := make([]string, 0, len(urls))
 		for url := range urls {
@@ -315,8 +330,19 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 				fmt.Printf("Error: Could not send request due to incorrect request body\n")
 				return
 			}
+			responseCount = responseCount + 1
 			urlArray = append(urlArray, url)
 		}
+		// TODO: grab the mutex. alter the maps
+		mapMutex.Lock()
+		queryMap[id] = make(PriorityQueue, entriesToServe)
+		responsesMap[id] = responseCount
+		requestMutexesMap[id] = &sync.Mutex{}
+		mapMutex.Unlock()
+
+		// TODO: where do we add the timeout callback?
+		
+		// TODO: need to add the uuid field to the request
 		serveReverseProxy(urlArray, res, req)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
@@ -385,6 +411,46 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 		}
 	}
 
+}
+
+func processResponse(response responseObj) {
+	var id, err = uuid.fromBytes(response.uuid)
+	
+	if err != nil {
+		panic(err)
+	} else {
+		// Concurrent reads of the map for getting the mutex are alright
+		if mutex, ok := requestMutexMap[id]; ok {
+			// make sure that this id hasn't been cleaned up 
+			bool readyToServe = false // Tells us whether all responses have been received
+			mutex.Lock()
+			var responseEntries = responseObj. // todo: get entries
+			responsesMap[id] = responsesMap[id] - 1 // decrement number of responses we're waiting on
+			var pq = queryMap[id]
+			for responseEntry:= range responseEntries {
+				pq.PushToCapacity(entriesToServe, responseEntry)
+				// TODO: COME BACK HERE AND MAKE SURE IT'S ALRIGHT
+			}
+			if responsesMap[id] == 0 {
+				readyToServe = true
+			}
+			mutex.Unlock()
+			if readyToServe {
+				multiServerMapCleanup(id)
+				// cleanup then serve the request to the client
+
+			}
+		}
+	}
+}
+
+func multiServerMapCleanup(id uuid.UUID) {
+	// First lock on mutex
+	mapMutex.Lock()
+	delete(requestMutexMap, id)
+	delete(responsesMap, id)
+	delete(queryMap, id)
+	mapMutex.Unlock()
 }
 
 func main() {
