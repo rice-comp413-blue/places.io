@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"math"
@@ -42,6 +43,9 @@ type submitRequestPayloadStruct struct {
 
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
 var data = map[CoordRange]map[CoordRange]string{}
+
+// Map of UUID to Heap
+var queryMap = map[uuid.UUID]heap.PriorityQueue 
 
 // Error coord
 var ERROR_COORD = Coord{360, 360}
@@ -96,6 +100,7 @@ func setupMap() {
 	data[cr1][cr3] = "A_CONDITION_URL"
 	data[cr2][cr3] = "B_CONDITION_URL"
 }
+
 
 func modifyMap(conditional int) {
 	if conditional == 0 {
@@ -240,6 +245,10 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 // Serve a reverse proxy for a given url
 func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	
+	// Create an entry in our response map
+	UUID uuid := uuid.New()
+	queryMap[uuid] = make(PriorityQueue, entriesToServe)
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
