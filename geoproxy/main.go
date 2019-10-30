@@ -436,12 +436,26 @@ func processResponse(response responseObj) {
 			}
 			mutex.Unlock()
 			if readyToServe {
-				multiServerMapCleanup(id)
-				// cleanup then serve the request to the client
-
+				serveResponseThenCleanup(id)
 			}
 		}
 	}
+}
+
+func buildResponse(id uuid.UUID) reponseObj[] { // TODO
+	// TODO: check if we can just return the priority queue as it is (potentially has empty entries), or do we have to pop all the elements first
+	while CONDITION { //TODO: FILL IN
+		heap.pop(...) 	
+	}
+}
+
+func serveResponseThenCleanup(id uuid.UUID) {
+	var responseEntries reponseObj[] = buildResponse(id) // TODO
+	// cleanup 
+	multiServerMapCleanup(id)
+	
+	// serve the request to the client
+	
 }
 
 func multiServerMapCleanup(id uuid.UUID) {
