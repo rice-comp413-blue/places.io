@@ -16,7 +16,7 @@ var validSubmitRequestBody = (req, res, next) => {
     if (req.body.hasOwnProperty("lat")
         && req.body.hasOwnProperty("lng")
         && req.body.hasOwnProperty("timestamp") 
-        && (req.body.hasOwnProperty("text") || req.body.hasOwnProperty("image"))
+        && (req.body.hasOwnProperty("text") || req.body.hasOwnProperty("file"))
         && validLatLng.validLatLng([req.body.lat, req.body.lng])) {
         return next();
     } else {
