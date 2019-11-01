@@ -28,6 +28,16 @@ type CoordRange struct {
 	Low, High float64
 }
 
+// Post struct for server response to view
+type Post struct {
+	StoryID 	string 		`json:"storyid"`
+	Timestamp 	time.Time 	`json:"timestamp"`
+	Lat 		float64 	`json:"lat"`
+	Lng 		float64 	`json:"long"`
+	Text 		string 		`json:"text"`
+	HasImage 	bool 		`json:"hasimage"`
+}
+
 // View request passes top-left and bottom-right coords
 // "latlng1": [2.5, -10.3],
 // "latlng2": [0, 80.5]
@@ -154,6 +164,16 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	}
 
 	return requestPayload
+}
+
+// Call this after receiving server response to view for posts
+func getPosts(body []byte) ([]Post, error) {
+	var posts []Post
+    err := json.Unmarshal(body, &posts)
+    if(err != nil){
+        log.Printf("Error parsing server response: %v", err)
+    }
+    return posts, err
 }
 
 // Parse the submit requests body
