@@ -29,9 +29,9 @@ const createStory = (req, res) => {
         } else {
             if (req.file) {
                 let url = req.file.location;
-                res.status(200).send('Successfully posted a story with image. Image in s3 bucket at ' + url);
+                res.status(201).send('Successfully posted a story with image. Image in s3 bucket at ' + url);
             } else {
-                res.status(200).send('Successfully posted a story without image.');
+                res.status(201).send('Successfully posted a story without image.');
             }
         }
     });
