@@ -1,7 +1,7 @@
 import React from 'react';
 import '../App.css';
 import { Map, TileLayer, Marker, Popup } from 'react-leaflet';
-import RequestHelper from '../RequestHelper';
+// import RequestHelper from '../RequestHelper';
 import Control from 'react-leaflet-control';
 import Button from 'react-bootstrap/Button';
 import MockEndpoints from '../MockEndpoints/MockEndpoints';
