@@ -4,7 +4,7 @@ const cors = require('cors');
 const db = require('./queries');
 const story = require('./controllers/storyController');
 const validationMiddleware = require('./middleware/validation.request.property');
-const upload = require('./models/s3')
+const upload = require('./models/s3');
 
 const app = express();
 const port = 3000;
@@ -26,13 +26,12 @@ app.get('/', (request, response) => {
 app.get('/test', db.getTest);
 app.post('/test', db.postTest);
 
-// actual routes TBD
-app.post('/submit', upload.single('file'), story.createStory);
+app.get('/health', story.healthStory); // health check
 
-app.post('/view', story.getStoriesInBox);
+// app.post('/submit', validationMiddleware.validSubmitRequestProperties, upload.single('file'), story.createStory);
+app.post('/submit', upload.single('file'), story.createStory); // create story
 
-// test middleware
-app.post('/test-middleware', validationMiddleware.validSubmitRequestProperties, story.createStory);
+app.post('/view', validationMiddleware.validViewRequestProperties, story.getStoriesInBox); // view stories
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);

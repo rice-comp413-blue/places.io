@@ -11,10 +11,10 @@ var upload = multer({
     s3: s3,
     bucket: BUCKET,
     metadata: function (req, file, cb) {
-      cb(null, {fieldName: file.originalname});
+      cb(null, {originalName: file.originalname});
     },
     key: function (req, file, cb) {
-      cb(null, file.originalname)
+      cb(null, Date.now() + file.originalname)
     }
   })
 })
