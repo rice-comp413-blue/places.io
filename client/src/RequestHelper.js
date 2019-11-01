@@ -12,7 +12,7 @@ const RequestHelper = {
             }
         );
     },
-    submitPlace: (text, coordinate) => {
+    submitPlace: (text, coordinate, file) => {
         // console.log(coordinate);
         // const form = new FormData();
         // form.append('text', text);
@@ -20,17 +20,34 @@ const RequestHelper = {
         // form.append('long', coordinate[1]);
         // form.append('timestamp', new Date());
 
-        return axios.post('http://localhost:1330/submit',
-            {
-                text,
-                coordinate,
-                timestamp: new Date()
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+        // TODO: update to multipart form data
+        if (file === null) {
+            return axios.post('http://localhost:1330/submit',
+                {
+                    text,
+                    coordinate,
+                    timestamp: new Date()
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+        } else {
+            return axios.post('http://localhost:1330/submit',
+                {
+                    text,
+                    coordinate,
+                    image: file,
+                    timestamp: new Date()
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+        }
+
     }
 }
 export default RequestHelper;
