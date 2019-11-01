@@ -38,6 +38,11 @@ type Post struct {
 	HasImage 	bool 		`json:"hasimage"`
 }
 
+type ResponseObj struct {
+	Posts []Post `json:""` // TODO:
+	ID string `json:"id"` // TODO:
+}
+
 // View request passes top-left and bottom-right coords
 // "latlng1": [2.5, -10.3],
 // "latlng2": [0, 80.5]
@@ -168,6 +173,7 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 
 // Call this after receiving server response to view for posts
 func getPosts(body []byte) ([]Post, error) {
+	// Todo: probably revise to return the entire response struct
 	var posts []Post
     err := json.Unmarshal(body, &posts)
     if(err != nil){
@@ -306,11 +312,21 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				newReq.Header.Add(header, value)
 			}
 		}
-		newRes := httptest.NewRecorder()
 
+		res, _ := http.DefaultClient.Do(newReq)
+		defer res.Body.Close()
+		// Todo: do we close the response appropriately? 
+			// when do we want to process it? 
+		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
+		var responseObj ResponseObj = json.NewDecoder(r.Body).Decode(ResponseObj)
+		// body, _ := ioutil.ReadAll(res.Body) // 
+		processResponse(responseObj)
 		// Note that ServeHttp is non blocking and uses a go routine under the hood
-		fmt.Printf("Request served to reverse proxy for %s\n", target[i])
-		proxy.ServeHTTP(newRes, newReq)
+		if verbose {
+			fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+		}
+		// newRes := httptest.NewRecorder()
+		// proxy.ServeHTTP(newRes, newReq)
 	}
 }
 
@@ -337,7 +353,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		fmt.Printf("View request received\n")
-		UUID id := uuid.New()
+		var tag := uuid.New()
 		requestPayload := parseViewRequestBody(req)
 		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
 		fmt.Printf("Conditional url(s) attained\n")
@@ -356,21 +372,13 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			urlArray = append(urlArray, url)
 		}
 		mapMutex.Lock()
-		queryMap[id] = make(PriorityQueue, entriesToServe)
-		responsesMap[id] = responseCount
-		requestMutexesMap[id] = &sync.Mutex{}
+		queryMap[tag] = make(PriorityQueue, entriesToServe)
+		responsesMap[tag] = responseCount
+		requestMutexesMap[tag] = &sync.Mutex{}
 		mapMutex.Unlock()
 
 		// TODO: where do we add the timeout callback?
 		// https://gobyexample.com/timeouts
-
-			
-		select {
-			case res := <-c1:
-				fmt.Println(res)
-			case <-time.After(timeout * time.Second):
-				fmt.Println("timeout 1")
-		}
 
 		serveReverseProxy(urlArray, res, req)
 	} else if strings.Contains(req.URL.Path, "submit") {
@@ -453,13 +461,16 @@ func processResponse(response responseObj) {
 			// make sure that this id hasn't been cleaned up 
 			bool readyToServe = false // Tells us whether all responses have been received
 			mutex.Lock()
-			var responseEntries = responseObj. // todo: get entries
+			var responseEntries = responseObj.Posts // todo: get entries
 			responsesMap[id] = responsesMap[id] - 1 // decrement number of responses we're waiting on
 			var pq = queryMap[id]
-			for responseEntry:= range responseEntries {
+			for responseEntry := range responseEntries {
 				pq.PushToCapacity(entriesToServe, responseEntry)
 				// TODO: COME BACK HERE AND MAKE SURE IT'S ALRIGHT
 			}
+			// Todo: figure out above method calls and use of structs vs pointers
+// Simmulate actual responses if possible
+// Do i store the heaps in the map as pointers? or the struct itself?
 			if responsesMap[id] == 0 {
 				readyToServe = true
 			}
@@ -471,18 +482,32 @@ func processResponse(response responseObj) {
 	}
 }
 
+
 func buildResponse(id uuid.UUID) reponseObj[] { // TODO
 	// TODO: check if we can just return the priority queue as it is (potentially has empty entries), or do we have to pop all the elements first
-	while CONDITION { //TODO: FILL IN
-		heap.pop(...) 	
+	var posts [entriesToServe]reponseObj
+	// todo: Check: will it be an issue if the posts array is longer than the number of posts we actually have (i.e. when it comes to marshalling)
+	var requestMutex = requestMutexMap[id]
+	requestMutex.Lock()
+	var pq = queryMap[id]
+	var i = 0
+	while posts.Size() != 0 {
+		var post = heap.Pop(&pq).(*Post)
+		posts[i] = post
+		i++
 	}
+	requestMutex.Unlock()
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
-	var responseEntries reponseObj[] = buildResponse(id) // TODO
+	var responseEntries = buildResponse(id) // TODO
+	// First marshal the response
+	var res = json.Marshal(...)
+	// Create the response
+
 	// cleanup 
 	multiServerMapCleanup(id)
-	
+	// todo: how will we delay sending the response? I.e. how do we retain which client to send to?
 	// serve the request to the client
 }
 

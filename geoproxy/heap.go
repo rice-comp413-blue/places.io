@@ -16,15 +16,6 @@ type Item struct { // TODO: REPLACE WITH RESPOONSE STRUCT
 	time  time.Time
 }
 
-type responseObj struct {
-	Time     time.Time `json:"timestamp"`
-	StoryID  string    `json:"storyid"`
-	Lat      float64   `json:"lat"`
-	Long     float64   `json:"long"`
-	Text     string    `json:"text"`
-	HasImage bool      `json:"hasImage`
-}
-
 // A PriorityQueue implements heap.Interface and holds Items.
 type PriorityQueue []*Item
 
