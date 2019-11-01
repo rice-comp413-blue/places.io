@@ -9,7 +9,7 @@ const getStoriesInBox = (req, res) => {
             res.status(404).json(err.toString());
             throw err;
         } else {
-            res.status(200).json(record.rows);
+            res.status(200).json({"entries": record.rows, "id": newBox.id});
         }
     });
 };
