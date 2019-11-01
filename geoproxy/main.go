@@ -2,21 +2,38 @@ package main
 
 import (
 	"bytes"
+	heap "container/heap"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
-	"net/http/httptest"
+
+	uuid "github.com/google/uuid"
+
+	// "net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
-    "sync"
+	"sync"
 	"time"
 )
+
+var verbose = false
+
+var jsonBlob = []byte(`[
+	{"Name": "Platypus", "Order": "Monotremata"},
+	{"Name": "Quoll",    "Order": "Dasyuromorphia"}
+]`)
+
+var HARDCODE_RESP = []byte(
+	`{entries: 
+	[
+		{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}
+		],
+	id: "0a9bcb62-27ff-40eb-ab7d-9bc5ffb6937e"}`)
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -30,17 +47,17 @@ type CoordRange struct {
 
 // Post struct for server response to view
 type Post struct {
-	StoryID 	string 		`json:"storyid"`
-	Timestamp 	time.Time 	`json:"timestamp"`
-	Lat 		float64 	`json:"lat"`
-	Lng 		float64 	`json:"long"`
-	Text 		string 		`json:"text"`
-	HasImage 	bool 		`json:"hasimage"`
+	StoryID   string    `json:"storyid"`
+	Timestamp time.Time `json:"timestamp"`
+	Lat       float64   `json:"lat"`
+	Lng       float64   `json:"long"`
+	Text      string    `json:"text"`
+	HasImage  bool      `json:"hasimage"`
 }
 
 type ResponseObj struct {
-	Posts []Post `json:""` // TODO:
-	ID string `json:"id"` // TODO:
+	Posts []Post `json:"entries"` // TODO:
+	ID    string `json:"id"`      // TODO:
 }
 
 // View request passes top-left and bottom-right coords
@@ -79,20 +96,23 @@ var pingB = true
 
 var timeout float64 = 1
 
-var entriesToServe = 10 // Currently hard-coded. do we want to take this in from the client or something?
+const entriesToServe = 10 // Currently hard-coded. do we want to take this in from the client or something?
+
+// Map of UUID to response writer
+var responseWriterMap map[uuid.UUID]http.ResponseWriter
 
 // Map of UUID to mutex. Each mutex regulates access to heap corresponding to same UUID
-var requestMutexMap = map[uuid.UUID]sync.Mutex
+var requestMutexMap map[uuid.UUID]sync.Mutex
 
 // Mutex for regulating access to below maps.
-var mapMutex = &sync.Mutex{}
+var mapMutex = sync.Mutex{}
 
 // Map of UUID to number of requests expected
-var responsesMap = map[uuid.UUID]int 
+var responsesMap map[uuid.UUID]int
 
 // Following maps and mutex created to help handle forwarding of requests to multiple servers
 // Map of UUID to Heap for maintaining the entries we're sending back to client
-var queryMap = map[uuid.UUID]heap.PriorityQueue 
+var queryMap map[uuid.UUID]PriorityQueue
 
 // Get env var or default
 func getEnv(key, fallback string) string {
@@ -130,7 +150,6 @@ func setupMap() {
 	data[cr1][cr3] = "A_CONDITION_URL"
 	data[cr2][cr3] = "B_CONDITION_URL"
 }
-
 
 func modifyMap(conditional int) {
 	if conditional == 0 {
@@ -175,11 +194,11 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 func getPosts(body []byte) ([]Post, error) {
 	// Todo: probably revise to return the entire response struct
 	var posts []Post
-    err := json.Unmarshal(body, &posts)
-    if(err != nil){
-        log.Printf("Error parsing server response: %v", err)
-    }
-    return posts, err
+	err := json.Unmarshal(body, &posts)
+	if err != nil {
+		log.Printf("Error parsing server response: %v", err)
+	}
+	return posts, err
 }
 
 // Parse the submit requests body
@@ -283,11 +302,10 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 	return getProxyURL(coord)
 }
 
-
 // Serve a reverse proxy for a given url
 func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	
+
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		// parse the url
@@ -315,11 +333,12 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 
 		res, _ := http.DefaultClient.Do(newReq)
 		defer res.Body.Close()
-		// Todo: do we close the response appropriately? 
-			// when do we want to process it? 
+		// Todo: do we close the response appropriately?
+		// when do we want to process it?
 		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
-		var responseObj ResponseObj = json.NewDecoder(r.Body).Decode(ResponseObj)
-		// body, _ := ioutil.ReadAll(res.Body) // 
+		var responseObj ResponseObj
+		json.NewDecoder(res.Body).Decode(&responseObj)
+		// body, _ := ioutil.ReadAll(res.Body) //
 		processResponse(responseObj)
 		// Note that ServeHttp is non blocking and uses a go routine under the hood
 		if verbose {
@@ -353,16 +372,17 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		fmt.Printf("View request received\n")
-		var tag := uuid.New()
+		var tag = uuid.New()
 		requestPayload := parseViewRequestBody(req)
 		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
 		fmt.Printf("Conditional url(s) attained\n")
 		// Create an entry in our response map
-		
-		var responseCount := 0
+
+		var responseCount = 0
 
 		urlArray := make([]string, 0, len(urls))
 		for url := range urls {
+			// todo: make sure that this is returning the actual url and not index
 			logViewRequestPayload(requestPayload, url)
 			if url == ERROR_URL {
 				fmt.Printf("Error: Could not send request due to incorrect request body\n")
@@ -372,9 +392,10 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			urlArray = append(urlArray, url)
 		}
 		mapMutex.Lock()
+		responseWriterMap[tag] = res
 		queryMap[tag] = make(PriorityQueue, entriesToServe)
 		responsesMap[tag] = responseCount
-		requestMutexesMap[tag] = &sync.Mutex{}
+		requestMutexMap[tag] = sync.Mutex{}
 		mapMutex.Unlock()
 
 		// TODO: where do we add the timeout callback?
@@ -447,30 +468,29 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 
 		}
 	}
-
 }
 
-func processResponse(response responseObj) {
-	var id, err = uuid.fromBytes(response.uuid)
-	
+func processResponse(response ResponseObj) {
+	b := []byte(response.ID)
+	var id, err = uuid.FromBytes(b)
 	if err != nil {
 		panic(err)
 	} else {
 		// Concurrent reads of the map for getting the mutex are alright
 		if mutex, ok := requestMutexMap[id]; ok {
-			// make sure that this id hasn't been cleaned up 
-			bool readyToServe = false // Tells us whether all responses have been received
+			// make sure that this id hasn't been cleaned up
+			var readyToServe = false // Tells us whether all responses have been received
 			mutex.Lock()
-			var responseEntries = responseObj.Posts // todo: get entries
+			var responseEntries = response.Posts    // todo: get entries
 			responsesMap[id] = responsesMap[id] - 1 // decrement number of responses we're waiting on
 			var pq = queryMap[id]
-			for responseEntry := range responseEntries {
+			for _, responseEntry := range responseEntries {
 				pq.PushToCapacity(entriesToServe, responseEntry)
 				// TODO: COME BACK HERE AND MAKE SURE IT'S ALRIGHT
 			}
 			// Todo: figure out above method calls and use of structs vs pointers
-// Simmulate actual responses if possible
-// Do i store the heaps in the map as pointers? or the struct itself?
+			// Simulate actual responses if possible
+			// Do i store the heaps in the map as pointers? or the struct itself?
 			if responsesMap[id] == 0 {
 				readyToServe = true
 			}
@@ -478,34 +498,48 @@ func processResponse(response responseObj) {
 			if readyToServe {
 				serveResponseThenCleanup(id)
 			}
+		} else {
+			if verbose {
+				fmt.Printf("Response for tag %s came after cleanup", id)
+			}
 		}
 	}
 }
 
-
-func buildResponse(id uuid.UUID) reponseObj[] { // TODO
+func buildResponse(id uuid.UUID) [entriesToServe]Post {
+	// TODO
 	// TODO: check if we can just return the priority queue as it is (potentially has empty entries), or do we have to pop all the elements first
-	var posts [entriesToServe]reponseObj
+	var posts [entriesToServe]Post
 	// todo: Check: will it be an issue if the posts array is longer than the number of posts we actually have (i.e. when it comes to marshalling)
 	var requestMutex = requestMutexMap[id]
 	requestMutex.Lock()
 	var pq = queryMap[id]
 	var i = 0
-	while posts.Size() != 0 {
+	var size = pq.Size()
+	for size != 0 {
+		size = pq.Size()
 		var post = heap.Pop(&pq).(*Post)
+		// todo: see whether we should return the actual struct or just the pointer
 		posts[i] = post
 		i++
 	}
 	requestMutex.Unlock()
+	return posts
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
 	var responseEntries = buildResponse(id) // TODO
 	// First marshal the response
-	var res = json.Marshal(...)
-	// Create the response
+	var data, _ = json.Marshal(responseEntries) // todo: can we marshal list with some empty elements?
 
-	// cleanup 
+	// Get the response writer
+	var resWriter = responseWriterMap[id]
+	resWriter.Write(data)
+	// if verbose { // maybe write otu
+	// 	fmt.Printf()
+	// }
+
+	// Clean up
 	multiServerMapCleanup(id)
 	// todo: how will we delay sending the response? I.e. how do we retain which client to send to?
 	// serve the request to the client
@@ -517,6 +551,7 @@ func multiServerMapCleanup(id uuid.UUID) {
 	delete(requestMutexMap, id)
 	delete(responsesMap, id)
 	delete(queryMap, id)
+	delete(responseWriterMap, id)
 	mapMutex.Unlock()
 }
 
