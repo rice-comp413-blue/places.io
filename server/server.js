@@ -26,11 +26,12 @@ app.get('/', (request, response) => {
 app.get('/test', db.getTest);
 app.post('/test', db.postTest);
 
-// actual routes TBD
-// app.post('/submit', validationMiddleware.validSubmitRequestProperties, upload.single('file'), story.createStory);
-app.post('/submit', upload.single('file'), story.createStory);
+app.get('/health', story.healthStory); // health check
 
-app.post('/view', validationMiddleware.validViewRequestProperties, story.getStoriesInBox);
+// app.post('/submit', validationMiddleware.validSubmitRequestProperties, upload.single('file'), story.createStory);
+app.post('/submit', upload.single('file'), story.createStory); // create story
+
+app.post('/view', validationMiddleware.validViewRequestProperties, story.getStoriesInBox); // view stories
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);

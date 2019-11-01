@@ -14,25 +14,20 @@ class Story {
         this.timestamp = story.timestamp;
         this.text = story.text;
         // TODO: this is prob not the right way to handle this, discuss a fix for this
-        this.hasimage = false;
-        this.image_url = "";
+        this.image_url = null;
     }
 
-    updateImageFlag(flag) {
-        this.hasimage = flag;
-    }
 
     updateImageUrl(url) {
         this.image_url = url;
     }
 
     static createStory(story, result) {
-
         pool.query("INSERT INTO story " +
-            "(storyid, lat, long, timestamp, text, hasimage, image_url) values " +
-            "($1, $2, $3, $4, $5, $6, $7)",
+            "(storyid, lat, long, timestamp, text, image_url) values " +
+            "($1, $2, $3, $4, $5, $6)",
             [story.storyid, story.lat, story.lng,
-                story.timestamp, story.text, story.hasimage, story.image_url],
+                story.timestamp, story.text, story.image_url],
             function (err, record) {
                 if (err) {
                     console.log("error: ", err);
