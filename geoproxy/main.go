@@ -34,6 +34,8 @@ var HARDCODE_RESP = []byte(
 		],
 	id: "0a9bcb62-27ff-40eb-ab7d-9bc5ffb6937e"}`)
 
+var SAMP_POST = []byte(`{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}`)
+
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
 	Lat, Lng float64
@@ -557,11 +559,17 @@ func main() {
 	http.HandleFunc("/", handleRequestAndRedirect)
 
 	// TESTING
-	var responseObj ResponseObj
-	r := bytes.NewReader(HARDCODE_RESP)
-	json.NewDecoder(r).Decode(&responseObj)
+	var post Post
+	// var responseObj ResponseObj
+	// r := bytes.NewReader(HARDCODE_RESP)
+	// json.NewDecoder(r).Decode(&responseObj)
 	// fmt.Println(responseObj.Posts[0].Text)
-	fmt.Println(responseObj.ID)
+	// json.Unmarshal([]byte(HARDCODE_RESP), &responseObj)
+	json.Unmarshal([]byte(SAMP_POST), &post)
+	fmt.Println(post)
+
+	// fmt.Println(responseObj)
+	// fmt.Println(responseObj.ID)
 	// TESTING
 
 	//Initialize ticker + channel + run in parallel
