@@ -27,12 +27,10 @@ var verbose = false
 // 	{"Name": "Quoll",    "Order": "Dasyuromorphia"}
 // ]`)
 
+var H1 = `[{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}]`
+
 var HARDCODE_RESP = []byte(
-	`{entries: 
-	[
-		{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}
-		],
-	id: "0a9bcb62-27ff-40eb-ab7d-9bc5ffb6937e"}`)
+	`{"entries": [{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}], "id": "0a9bcb62-27ff-40eb-ab7d-9bc5ffb6937e"}`)
 
 var SAMP_POST = []byte(`{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}`)
 
@@ -336,13 +334,13 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 		var responseObj ResponseObj
 		json.NewDecoder(res.Body).Decode(&responseObj)
-		// body, _ := ioutil.ReadAll(res.Body) //
+		body, _ := ioutil.ReadAll(res.Body) //
+		if err := json.Unmarshal([]byte(body), &responseObj); err != nil {						                                log.Fatal(err)									        }
 		processResponse(responseObj)
 		// Note that ServeHttp is non blocking and uses a go routine under the hood
 		if verbose {
 			fmt.Printf("Request served to reverse proxy for %s\n", target[i])
 		}
-		// newRes := httptest.NewRecorder()
 		// proxy.ServeHTTP(newRes, newReq)
 	}
 }
@@ -351,7 +349,6 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 func enableCors(w *http.ResponseWriter) {
 	//  allow CORS
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-
 	//  Allow these headers in client's response to pre-flight response
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
@@ -561,15 +558,25 @@ func main() {
 	// TESTING
 	// var post Post
 	var responseObj ResponseObj
+	var posts [3]Post
 	// r := bytes.NewReader(HARDCODE_RESP)
 	// json.NewDecoder(r).Decode(&responseObj)
 	// fmt.Println(responseObj.Posts[0].Text)
-	json.Unmarshal([]byte(HARDCODE_RESP), &responseObj)
-
+	// json.Unmarshal([]byte(HARDCODE_RESP), &responseObj)
+	if err := json.Unmarshal([]byte(HARDCODE_RESP), &responseObj); err != nil {
+				log.Fatal(err)
+	}
+	var post1 = responseObj.Posts[0]
+	posts[0]=post1
+	posts[2]=post1
+	//json.Unmarshal([]byte(H1), &posts)
 	// json.Unmarshal([]byte(SAMP_POST), &post)
 	// fmt.Println(post)
 
-	fmt.Println(responseObj)
+	var data, _ = json.Marshal(posts)
+	fmt.Println(string(data))
+	//fmt.Println(posts)
+	//fmt.Println(responseObj)
 	// fmt.Println(responseObj.ID)
 	// TESTING
 
