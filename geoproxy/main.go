@@ -559,16 +559,17 @@ func main() {
 	http.HandleFunc("/", handleRequestAndRedirect)
 
 	// TESTING
-	var post Post
-	// var responseObj ResponseObj
+	// var post Post
+	var responseObj ResponseObj
 	// r := bytes.NewReader(HARDCODE_RESP)
 	// json.NewDecoder(r).Decode(&responseObj)
 	// fmt.Println(responseObj.Posts[0].Text)
-	// json.Unmarshal([]byte(HARDCODE_RESP), &responseObj)
-	json.Unmarshal([]byte(SAMP_POST), &post)
-	fmt.Println(post)
+	json.Unmarshal([]byte(HARDCODE_RESP), &responseObj)
 
-	// fmt.Println(responseObj)
+	// json.Unmarshal([]byte(SAMP_POST), &post)
+	// fmt.Println(post)
+
+	fmt.Println(responseObj)
 	// fmt.Println(responseObj.ID)
 	// TESTING
 
