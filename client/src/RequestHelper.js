@@ -13,40 +13,56 @@ const RequestHelper = {
         );
     },
     submitPlace: (text, coordinate, file) => {
-        // console.log(coordinate);
-        // const form = new FormData();
-        // form.append('text', text);
-        // form.append('lat', coordinate[0])
-        // form.append('long', coordinate[1]);
-        // form.append('timestamp', new Date());
+        const form = new FormData();
+        form.append('text', text);
+        form.append('coordinate', JSON.stringify(coordinate));
+        form.append('timestamp', new Date());
+
+        if (file === null) {
+            form.append('file', null);
+        }
+        else {      //  file exists
+            form.append('file', file);
+        }
+        axios.post('', form, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+        console.log(form.get('text'));
+        console.log(form.get('coordinate'));
+        console.log(form.get('timestamp'));
+        console.log(form.get('file'));
+
 
         // TODO: update to multipart form data
-        if (file === null) {
-            return axios.post('http://localhost:1330/submit',
-                {
-                    text,
-                    coordinate,
-                    timestamp: new Date()
-                },
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-        } else {
-            return axios.post('http://localhost:1330/submit',
-                {
-                    text,
-                    coordinate,
-                    image: file,
-                    timestamp: new Date()
-                },
-                {
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-        }
+        // if (file === null) {
+        //     return axios.post('http://localhost:1330/submit',
+        //         {
+        //             text,
+        //             coordinate,
+        //             timestamp: new Date()
+        //         },
+        //         {
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             }
+        //         });
+        // } else {
+        //     return axios.post('http://localhost:1330/submit',
+        //         {
+        //             text,
+        //             coordinate,
+        //             image: file,
+        //             timestamp: new Date()
+        //         },
+        //         {
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             }
+        //         });
+        // }
 
     }
 }
