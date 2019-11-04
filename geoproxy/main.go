@@ -359,6 +359,29 @@ func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
+// Sets up timeout callback. Call after sending all requests
+func setupTimer(id uuid.UUID) {
+	// How long we should wait for multiple
+	timeWait := 4 * time.Second
+	time.AfterFunc(timeWait, func() {
+		if mutex, ok := requestMutexMap[id]; ok {
+			mutex.Lock()
+			var readyToServe = false
+			numRequests, exists := responsesMap[id]
+			if numRequests, exists := responsesMap[id]; exists {
+				if numRequests > 0 {
+					// Let's just send what we have
+					readyToServe = true
+				}
+			}
+			mutex.Unlock()
+			if readyToServe {
+				serveResponseThenCleanup(id)
+			}
+		}
+	})
+}
+
 // Given a request send it to the appropriate url
 func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
