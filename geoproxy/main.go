@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	heap "container/heap"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,7 +12,7 @@ import (
 	uuid "github.com/google/uuid"
 
 	// "net/http/httptest"
-	"net/http/httputil"
+
 	"net/url"
 	"os"
 	"strings"
@@ -23,10 +22,10 @@ import (
 
 var verbose = false
 
-var jsonBlob = []byte(`[
-	{"Name": "Platypus", "Order": "Monotremata"},
-	{"Name": "Quoll",    "Order": "Dasyuromorphia"}
-]`)
+// var jsonBlob = []byte(`[
+// 	{"Name": "Platypus", "Order": "Monotremata"},
+// 	{"Name": "Quoll",    "Order": "Dasyuromorphia"}
+// ]`)
 
 var HARDCODE_RESP = []byte(
 	`{entries: 
@@ -34,6 +33,8 @@ var HARDCODE_RESP = []byte(
 		{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}
 		],
 	id: "0a9bcb62-27ff-40eb-ab7d-9bc5ffb6937e"}`)
+
+var SAMP_POST = []byte(`{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}`)
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -112,7 +113,7 @@ var responsesMap map[uuid.UUID]int
 
 // Following maps and mutex created to help handle forwarding of requests to multiple servers
 // Map of UUID to Heap for maintaining the entries we're sending back to client
-var queryMap map[uuid.UUID]PriorityQueue
+var queryMap map[uuid.UUID]PostList
 
 // Get env var or default
 func getEnv(key, fallback string) string {
@@ -311,9 +312,6 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// parse the url
 		url, _ := url.Parse(target[i])
 
-		// create the reverse proxy
-		proxy := httputil.NewSingleHostReverseProxy(url)
-
 		// reusing requests is unreliable, so copy to new request
 		newReq, err := http.NewRequest(req.Method, target[i], req.Body)
 		if err != nil {
@@ -416,7 +414,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		}
 		mapMutex.Lock()
 		responseWriterMap[tag] = res
-		queryMap[tag] = make(PriorityQueue, entriesToServe)
+		queryMap[tag] = make(PostList, 0)
 		responsesMap[tag] = responseCount
 		requestMutexMap[tag] = sync.Mutex{}
 		mapMutex.Unlock()
@@ -504,11 +502,11 @@ func processResponse(response ResponseObj) {
 			// make sure that this id hasn't been cleaned up
 			var readyToServe = false // Tells us whether all responses have been received
 			mutex.Lock()
-			var responseEntries = response.Posts    // todo: get entries
+			var responseEntries = response.Posts
 			responsesMap[id] = responsesMap[id] - 1 // decrement number of responses we're waiting on
-			var pq = queryMap[id]
+			var pl = queryMap[id]
 			for _, responseEntry := range responseEntries {
-				pq.PushToCapacity(entriesToServe, responseEntry)
+				pl.PushToCapacity(entriesToServe, &responseEntry)
 				// TODO: COME BACK HERE AND MAKE SURE IT'S ALRIGHT
 			}
 			// Todo: figure out above method calls and use of structs vs pointers
@@ -529,31 +527,27 @@ func processResponse(response ResponseObj) {
 	}
 }
 
-func buildResponse(id uuid.UUID) [entriesToServe]Post {
-	// TODO
-	// TODO: check if we can just return the priority queue as it is (potentially has empty entries), or do we have to pop all the elements first
-	var posts [entriesToServe]Post
-	// todo: Check: will it be an issue if the posts array is longer than the number of posts we actually have (i.e. when it comes to marshalling)
-	var requestMutex = requestMutexMap[id]
-	requestMutex.Lock()
-	var pq = queryMap[id]
-	var i = 0
-	var size = pq.Size()
-	for size != 0 {
-		size = pq.Size()
-		var post = heap.Pop(&pq).(*Post)
-		// todo: see whether we should return the actual struct or just the pointer
-		posts[i] = post
-		i++
-	}
-	requestMutex.Unlock()
-	return posts
+func getResponse(id uuid.UUID) PostList {
+	// I wrote below code for if we choose to use heap implementation
+	// var requestMutex = requestMutexMap[id]
+	// var i = 0
+	// var size = pq.Size()
+	// for size != 0 {
+	// 	size = pq.Size()
+	// 	var post = heap.Pop(&pq).(*Post)
+	// 	// todo: see whether we should return the actual struct or just the pointer
+	// 	posts[i] = post
+	// 	i++
+	// }
+	// requestMutex.Unlock()
+	return queryMap[id]
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
-	var responseEntries = buildResponse(id) // TODO
+	var responseEntries = getResponse(id) // TODO
 	// First marshal the response
-	var data, _ = json.Marshal(responseEntries) // todo: can we marshal list with some empty elements?
+	var data, _ = json.Marshal(responseEntries)
+	// todo: can we marshal list with some empty elements?
 
 	// Get the response writer
 	var resWriter = responseWriterMap[id]
@@ -584,9 +578,23 @@ func main() {
 	setupMap()
 
 	fmt.Printf("Map set up\n")
-
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
+
+	// TESTING
+	// var post Post
+	var responseObj ResponseObj
+	// r := bytes.NewReader(HARDCODE_RESP)
+	// json.NewDecoder(r).Decode(&responseObj)
+	// fmt.Println(responseObj.Posts[0].Text)
+	json.Unmarshal([]byte(HARDCODE_RESP), &responseObj)
+
+	// json.Unmarshal([]byte(SAMP_POST), &post)
+	// fmt.Println(post)
+
+	fmt.Println(responseObj)
+	// fmt.Println(responseObj.ID)
+	// TESTING
 
 	//Initialize ticker + channel + run in parallel
 	ticker := time.NewTicker(5000 * time.Millisecond)
