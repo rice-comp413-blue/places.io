@@ -83,20 +83,20 @@ var timeout float64 = 1
 const entriesToServe = 10 // Currently hard-coded. do we want to take this in from the client or something?
 
 // Map of UUID to response writer
-var responseWriterMap map[uuid.UUID]http.ResponseWriter
+var responseWriterMap map[uuid.UUID]http.ResponseWriter = make(map[uuid.UUID]http.ResponseWriter)
 
 // Map of UUID to mutex. Each mutex regulates access to heap corresponding to same UUID
-var requestMutexMap map[uuid.UUID]sync.Mutex
+var requestMutexMap map[uuid.UUID]sync.Mutex = make(map[uuid.UUID]sync.Mutex)
 
 // Mutex for regulating access to below maps.
 var mapMutex = sync.Mutex{}
 
 // Map of UUID to number of requests expected
-var responsesMap map[uuid.UUID]int
+var responsesMap map[uuid.UUID]int = make(map[uuid.UUID]int)
 
 // Following maps and mutex created to help handle forwarding of requests to multiple servers
 // Map of UUID to Heap for maintaining the entries we're sending back to client
-var queryMap map[uuid.UUID]PostList
+var queryMap map[uuid.UUID]PostList = make(map[uuid.UUID]PostList)
 
 // Get env var or default
 func getEnv(key, fallback string) string {
@@ -153,7 +153,7 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 		panic(err)
 	}
 
-	// Because go lang is a pain in the ass if you read the body then any susequent calls
+	// Because go lang is a pain in the ass if you read the body then any subsequent calls
 	// are unable to read the body again....
 	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
@@ -286,16 +286,40 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request) {
+// TODO include uuid as an argument
+func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	// Read body to buffer
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		return
+	}
+	buff := bytes.NewBuffer(body)
+
+	if id != uuid.Nil {
+		// Edit request body to include id
+		bodyStr := buff.String()
+		// This is where we want to insert the id param
+		i := strings.LastIndex(bodyStr, "\n}")
+		// Convert to runes to split
+		runes := []rune(bodyStr)
+		// Left side string of \n}
+		leftStr := string(runes[0:i])
+		buff = bytes.NewBufferString(leftStr)
+		// Concatenate new id param and request body remainder
+		buff.WriteString(",\n  \"id\": " + id.String())
+		buff.WriteString(string(runes[i:len(runes)]))
+	}
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		// parse the url
 		url, _ := url.Parse(target[i])
+		newReqBody := ioutil.NopCloser(buff)
 
 		// reusing requests is unreliable, so copy to new request
-		newReq, err := http.NewRequest(req.Method, target[i], req.Body)
+		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
 		if err != nil {
 			log.Printf("Error creating new request: %v", err)
 			continue
@@ -322,12 +346,12 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 		var responseObj ResponseObj
 		json.NewDecoder(res.Body).Decode(&responseObj)
-		body, bodyErr := ioutil.ReadAll(res.Body)
+		/* body, bodyErr := ioutil.ReadAll(res.Body)
 		if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
 			log.Fatal(unmarshalErr)
 		}
+		*/
 		processResponse(responseObj)
-		// Note that ServeHttp is non blocking and uses a go routine under the hood
 		if verbose {
 			fmt.Printf("Request served to reverse proxy for %s\n", target[i])
 		}
@@ -342,6 +366,28 @@ func enableCors(w *http.ResponseWriter) {
 	//  Allow these headers in client's response to pre-flight response
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+// Sets up timeout callback. Call after sending all requests
+func setupTimer(id uuid.UUID) {
+	// How long we should wait for multiple
+	timeWait := 4 * time.Second
+	time.AfterFunc(timeWait, func() {
+		if mutex, ok := requestMutexMap[id]; ok {
+			mutex.Lock()
+			var readyToServe = false
+			if numRequests, exists := responsesMap[id]; exists {
+				if numRequests > 0 {
+					// Let's just send what we have
+					readyToServe = true
+				}
+			}
+			mutex.Unlock()
+			if readyToServe {
+				serveResponseThenCleanup(id)
+			}
+		}
+	})
 }
 
 // Given a request send it to the appropriate url
@@ -379,6 +425,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			responseCount = responseCount + 1
 			urlArray = append(urlArray, url)
 		}
+
 		mapMutex.Lock()
 		responseWriterMap[tag] = res
 		queryMap[tag] = make(PostList, 0)
@@ -389,7 +436,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		// TODO: where do we add the timeout callback?
 		// https://gobyexample.com/timeouts
 
-		serveReverseProxy(urlArray, res, req)
+		serveReverseProxy(urlArray, res, req, tag)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
 		fmt.Printf("Submit request received\n")
@@ -406,7 +453,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		urlArray := make([]string, 0, 1)
 		urlArray = append(urlArray, url)
 
-		serveReverseProxy(urlArray, res, req)
+		serveReverseProxy(urlArray, res, req, uuid.Nil)
 	} else {
 		fmt.Printf("Unrecognized request received\n")
 	}
