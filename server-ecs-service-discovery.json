@@ -1,0 +1,18 @@
+{
+  "cluster": "placesCluster",
+  "serviceName": "server-ecs-service-discovery",
+  "taskDefinition": "taskDefServer",
+  "serviceRegistries": [
+    {
+      "registryArn": "arn:aws:servicediscovery:region:aws_account_id:service/srv-lv33rajjprs7unxz"
+    }
+  ],
+  "launchType": "FARGATE",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "securityGroups": [ "sg-06ffc91cf4e8d1c79"],
+      "subnets": [ "subnet-02056aa8e15144e38", "subnet-0306dcd1f5b985260" ]
+    }
+  },
+  "desiredCount": 2
+}
