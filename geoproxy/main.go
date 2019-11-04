@@ -170,7 +170,7 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 		panic(err)
 	}
 
-	// Because go lang is a pain in the ass if you read the body then any susequent calls
+	// Because go lang is a pain in the ass if you read the body then any subsequent calls
 	// are unable to read the body again....
 	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
@@ -304,16 +304,40 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 }
 
 // Serve a reverse proxy for a given url
-func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request) {
+// TODO include uuid as an argument
+func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	// Read body to buffer
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		return
+	}
+	buff := bytes.NewBuffer(body)
+
+	if id != uuid.Nil {
+		// Edit request body to include id
+		bodyStr := buff.String()
+		// This is where we want to insert the id param
+		i := strings.LastIndex(bodyStr, "\n}")
+		// Convert to runes to split
+		runes := []rune(bodyStr)
+		// Left side string of \n}
+		leftStr := string(runes[0:i])
+		buff = bytes.NewBufferString(leftStr)
+		// Concatenate new id param and request body remainder
+		buff.WriteString(",\n  \"id\": " + id.String())
+		buff.WriteString(string(runes[i:len(runes)]))
+	}
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		// parse the url
 		url, _ := url.Parse(target[i])
+		newReqBody := ioutil.NopCloser(buff)
 
 		// reusing requests is unreliable, so copy to new request
-		newReq, err := http.NewRequest(req.Method, target[i], req.Body)
+		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
 		if err != nil {
 			log.Printf("Error creating new request: %v", err)
 			continue
@@ -336,14 +360,10 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 		var responseObj ResponseObj
 		json.NewDecoder(res.Body).Decode(&responseObj)
-		// body, _ := ioutil.ReadAll(res.Body) //
 		processResponse(responseObj)
-		// Note that ServeHttp is non blocking and uses a go routine under the hood
 		if verbose {
 			fmt.Printf("Request served to reverse proxy for %s\n", target[i])
 		}
-		// newRes := httptest.NewRecorder()
-		// proxy.ServeHTTP(newRes, newReq)
 	}
 }
 
@@ -365,7 +385,6 @@ func setupTimer(id uuid.UUID) {
 		if mutex, ok := requestMutexMap[id]; ok {
 			mutex.Lock()
 			var readyToServe = false
-			numRequests, exists := responsesMap[id]
 			if numRequests, exists := responsesMap[id]; exists {
 				if numRequests > 0 {
 					// Let's just send what we have
@@ -412,6 +431,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			responseCount = responseCount + 1
 			urlArray = append(urlArray, url)
 		}
+
 		mapMutex.Lock()
 		responseWriterMap[tag] = res
 		queryMap[tag] = make(PostList, 0)
@@ -422,7 +442,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		// TODO: where do we add the timeout callback?
 		// https://gobyexample.com/timeouts
 
-		serveReverseProxy(urlArray, res, req)
+		serveReverseProxy(urlArray, res, req, tag)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
 		fmt.Printf("Submit request received\n")
@@ -439,7 +459,7 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		urlArray := make([]string, 0, 1)
 		urlArray = append(urlArray, url)
 
-		serveReverseProxy(urlArray, res, req)
+		serveReverseProxy(urlArray, res, req, uuid.Nil)
 	} else {
 		fmt.Printf("Unrecognized request received\n")
 	}
