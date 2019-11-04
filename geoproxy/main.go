@@ -328,6 +328,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// Concatenate new id param and request body remainder
 		buff.WriteString(",\n  \"id\": " + id.String())
 		buff.WriteString(string(runes[i:len(runes)]))
+		setupTimer(id)
 	}
 
 	// Send to other servers for view request
