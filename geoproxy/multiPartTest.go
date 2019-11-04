@@ -47,11 +47,15 @@ func main() {
 		"title":       "My Document",
 		"author":      "Matt Aimonetti",
 		"description": "A document with all the Go programming language secrets",
+		"coordinate": "[-90, 0]",
 	}
-	request, err := newfileUploadRequest("https://google.com/upload", extraParams, "file", "/tmp/doc.pdf")
+	request, err := newfileUploadRequest("https://google.com/upload", extraParams, "file", "./tmp/doc.pdf")
 	if err != nil {
 		log.Fatal(err)
 	}
+	requestPayload := parseSubmitRequestBody(request)
+	fmt.Printf("%v",requestPayload)
+	/*
 	client := &http.Client{}
 	resp, err := client.Do(request)
 	if err != nil {
@@ -67,4 +71,5 @@ func main() {
 		fmt.Println(resp.Header)
 		fmt.Println(body)
 	}
+	*/
 }

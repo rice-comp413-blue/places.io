@@ -155,15 +155,16 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	var LatLng []float64
 	latLngString := request.FormValue("coordinate")
 	var b = []byte(latLngString)
+	//fmt.Println(latLngString)
+	var requestPayload submitRequestPayloadStruct
 	err := json.Unmarshal(b, &LatLng)
 
-	var requestPayload submitRequestPayloadStruct
 	requestPayload.LatLng = LatLng
 
 	if err != nil {
 		panic(err)
 	}
-
+		
 	return requestPayload
 }
 
