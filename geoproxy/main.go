@@ -4,20 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	uuid "github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
-	uuid "github.com/google/uuid"
 	// "net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
 )
 
-var verbose = false
+var verbose = true
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -85,10 +86,10 @@ const entriesToServe = 10 // Currently hard-coded. do we want to take this in fr
 // Map of UUID to response writer
 var responseWriterMap map[uuid.UUID]http.ResponseWriter = make(map[uuid.UUID]http.ResponseWriter)
 
-// Map of UUID to mutex. Each mutex regulates access to heap corresponding to same UUID
+// Map of UUID to mutex. Each mutex regulates access to the entries of the map corresponding to the respective UUID. 
 var requestMutexMap map[uuid.UUID]sync.Mutex = make(map[uuid.UUID]sync.Mutex)
 
-// Mutex for regulating access to below maps.
+// Mutex for regulating access to below maps. Must have this mutex before attempting to add or delete to the map
 var mapMutex = sync.Mutex{}
 
 // Map of UUID to number of requests expected
@@ -379,6 +380,7 @@ func setupTimer(id uuid.UUID) {
 			var readyToServe = false
 			if numRequests, exists := responsesMap[id]; exists {
 				if numRequests > 0 {
+					// Note, this should always be true if the request hasn't been serviced yet. maybe delete if statement
 					// Let's just send what we have
 					readyToServe = true
 				}
@@ -388,6 +390,9 @@ func setupTimer(id uuid.UUID) {
 				serveResponseThenCleanup(id)
 			}
 		}
+		/*
+		If the mutex isn't in the map, then this means that the request has already been served. In this case, we do nothing. 
+		*/
 	})
 }
 
@@ -426,16 +431,13 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 			responseCount = responseCount + 1
 			urlArray = append(urlArray, url)
 		}
-
+		// Make all map entries for this uuid
 		mapMutex.Lock()
 		responseWriterMap[tag] = res
 		queryMap[tag] = make(PostList, 0)
 		responsesMap[tag] = responseCount
 		requestMutexMap[tag] = sync.Mutex{}
 		mapMutex.Unlock()
-
-		// TODO: where do we add the timeout callback?
-		// https://gobyexample.com/timeouts
 
 		serveReverseProxy(urlArray, res, req, tag)
 	} else if strings.Contains(req.URL.Path, "submit") {
@@ -556,17 +558,28 @@ func getResponse(id uuid.UUID) PostList {
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
+        var requestMutex = requestMutexMap[id]
+	requestMutex.Lock() // We lock here in case we have two or more responses arrive after timeout
+	// We don't want both responses triggering us to serve the response. 
+	// This shouldn't be a problem if all responses arrive in a timely manner though
+	defer requestMutex.Unlock()
+	
 	var responseEntries = getResponse(id)
 	// First marshal the response
 	var data, _ = json.Marshal(responseEntries)
-
+	if verbose {
+		fmt.Println(reflect.TypeOf(data))
+		fmt.Println(data)
+	}
+	data_b := []byte(data)
 	// Get the response writer
 	var resWriter = responseWriterMap[id]
-	resWriter.Write(data)
+	resWriter.Write(data_b)
+	/*
 	if verbose { // maybe write otu
-	 	fmt.Printf()
+		fmt.Printf()
 	}
-
+	*/
 	// Clean up
 	multiServerMapCleanup(id)
 	// serve the request to the client
