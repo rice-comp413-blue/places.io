@@ -46,6 +46,14 @@ type submitRequestPayloadStruct struct {
 type requestHandler struct {
 }
 
+
+type healthResponse struct {
+  Image_url string
+  Storyid string
+  Text string
+
+}
+
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
 var data = map[CoordRange]map[CoordRange]string{}
 
@@ -348,6 +356,26 @@ func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request)
 	}
 }
 
+
+func checkMatches(resp *http.Response) bool {
+	var p []byte
+
+	if resp.ContentLength < 0 {
+        fmt.Println("No Data returned")
+        return (false)
+    }
+    p = make([]byte, resp.ContentLength)
+    resp.Body.Read(p)
+    healthJson := string(p)
+    var healthResp []healthResponse	
+	json.Unmarshal([]byte(healthJson), &healthResp)
+    if (healthResp[0].Image_url == "https://comp413-places.s3.amazonaws.com/1572467590447health.jpg"){
+    	//fmt.Println("Response OK")
+    	return(true)
+    }
+
+	return (false)
+}
 // This function is called on a timer and pings both
 // servers with a GET request. A 302 response is expected
 // but not yet explicity checked
@@ -366,11 +394,18 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 			    CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			      return http.ErrUseLastResponse
 			  } }
-			fmt.Println("HEALTH CHECK")
+			//fmt.Println("HEALTH CHECK")
 
 			if (pingA) {
-				_, err := client.Get(os.Getenv("A_CONDITION_URL"))
+				resp, err := client.Get(os.Getenv("A_CONDITION_URL") + "/health")
 				
+				valid := checkMatches(resp)
+
+				if (valid != true) {
+					fmt.Println("Error in response JSON")
+					modifyMap(0)
+					pingA = false
+				}
 
 				//What should we do if we run into an error? Right now just printing it
 				if err != nil {
@@ -384,7 +419,14 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 
 			
 			if (pingB) {
-				_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
+				resp, err2 := client.Get(os.Getenv("B_CONDITION_URL")+ "/health")
+				valid := checkMatches(resp)
+
+				if (valid != true) {
+					fmt.Println("Error in response JSON")
+					modifyMap(1)
+					pingB = false
+				}
 
 				if err2 != nil {
 					fmt.Println(err2)
