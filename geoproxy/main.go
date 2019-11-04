@@ -297,7 +297,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		return
 	}
 	buff := bytes.NewBuffer(body)
-
+	viewRequest := false
 	if id != uuid.Nil {
 		// Edit request body to include id
 		bodyStr := buff.String()
@@ -312,6 +312,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		buff.WriteString(",\n  \"id\": " + id.String())
 		buff.WriteString(string(runes[i:len(runes)]))
 		setupTimer(id)
+		viewRequest = true
 	}
 
 	// Send to other servers for view request
@@ -336,7 +337,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				newReq.Header.Add(header, value)
 			}
 		}
-
+		if viewRequest {
 		res, err := http.DefaultClient.Do(newReq)
 		if err != nil {
 			log.Printf("Error when sending request", err)
@@ -347,16 +348,42 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// when do we want to process it?
 		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 		var responseObj ResponseObj
-		json.NewDecoder(res.Body).Decode(&responseObj)
-		/* body, bodyErr := ioutil.ReadAll(res.Body)
+		//fmt.Println(res.Body)
+		
+		/*
+		dec := json.NewDecoder(res.Body)
+		decErr := dec.Decode(&responseObj)
+		
+		if decErr != nil {
+			log.Fatal(decErr)
+		}
+		if verbose {
+			fmt.Printf("%v", responseObj)
+		}
+		*/
+		///*
+		body, bodyErr := ioutil.ReadAll(res.Body)
+		if bodyErr != nil {
+			log.Fatal(bodyErr)
+		}
+		/*
+		if verbose {
+			fmt.Println("Response body follows")
+			fmt.Println(body)
+		}*/
+		
 		if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
 			log.Fatal(unmarshalErr)
 		}
-		*/
+		//*/
 		processResponse(responseObj)
 		if verbose {
 			fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+			fmt.Printf("%v", responseObj)
 		}
+	} else {
+		
+	}
 	}
 	}
 }
