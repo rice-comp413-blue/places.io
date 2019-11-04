@@ -1,4 +1,4 @@
-const pool = require('./db');
+const pool = require('../connection/db');
 const uuid = require('uuid');
 // coordinate (required) [lat, lng]
 // timestamp (required, in UTC) string

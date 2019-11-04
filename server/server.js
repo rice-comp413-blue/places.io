@@ -1,10 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const db = require('./queries');
+const db = require('./controllers/testController');
 const story = require('./controllers/storyController');
 const validationMiddleware = require('./middleware/validation.request.property');
-const upload = require('./models/s3');
+const upload = require('./connection/s3');
 
 const app = express();
 const port = 3000;
