@@ -100,20 +100,20 @@ var timeout float64 = 1
 const entriesToServe = 10 // Currently hard-coded. do we want to take this in from the client or something?
 
 // Map of UUID to response writer
-var responseWriterMap map[uuid.UUID]http.ResponseWriter
+var responseWriterMap map[uuid.UUID]http.ResponseWriter = make(map[uuid.UUID]http.ResponseWriter)
 
 // Map of UUID to mutex. Each mutex regulates access to heap corresponding to same UUID
-var requestMutexMap map[uuid.UUID]sync.Mutex
+var requestMutexMap map[uuid.UUID]sync.Mutex = make(map[uuid.UUID]sync.Mutex)
 
 // Mutex for regulating access to below maps.
 var mapMutex = sync.Mutex{}
 
 // Map of UUID to number of requests expected
-var responsesMap map[uuid.UUID]int
+var responsesMap map[uuid.UUID]int = make(map[uuid.UUID]int)
 
 // Following maps and mutex created to help handle forwarding of requests to multiple servers
 // Map of UUID to Heap for maintaining the entries we're sending back to client
-var queryMap map[uuid.UUID]PostList
+var queryMap map[uuid.UUID]PostList = make(map[uuid.UUID]PostList)
 
 // Get env var or default
 func getEnv(key, fallback string) string {
