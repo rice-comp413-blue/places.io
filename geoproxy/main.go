@@ -442,30 +442,30 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 
 }
 
-// func main() {
-// 	// Log setup values
-// 	logSetup()
-// 	setupMap()
-// 	flag.BoolVar(&verbose, "v", false, "a bool")
-// 	flag.Parse()
-// 	if verbose {
-// 		fmt.Println("Verbose mode")
-// 		fmt.Printf("Map set up\n")
-// 	}
-// 	rh := &requestHandler{}
-// 	// start server
+func main() {
+	// Log setup values
+	logSetup()
+	setupMap()
+	flag.BoolVar(&verbose, "v", false, "a bool")
+	flag.Parse()
+	if verbose {
+		fmt.Println("Verbose mode")
+		fmt.Printf("Map set up\n")
+	}
+	rh := &requestHandler{}
+	// start server
 
-// 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
-// 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
-// 	gzHandleFunc := gziphandler.GzipHandler(rh)
-// 	http.Handle("/", gzHandleFunc)
+	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
+	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
+	gzHandleFunc := gziphandler.GzipHandler(rh)
+	http.Handle("/", gzHandleFunc)
 
-// 	//Initialize ticker + channel + run in parallel
-// 	ticker := time.NewTicker(5000 * time.Millisecond)
-// 	done := make(chan bool)
-// 	go checkHealth(ticker, done)
+	//Initialize ticker + channel + run in parallel
+	ticker := time.NewTicker(5000 * time.Millisecond)
+	done := make(chan bool)
+	go checkHealth(ticker, done)
 
-// 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
-// 		panic(err)
-// 	}
-// }
+	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
+		panic(err)
+	}
+}
