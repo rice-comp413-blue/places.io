@@ -8,11 +8,8 @@ import (
 	"log"
 	"math"
 	"net/http"
-
 	uuid "github.com/google/uuid"
-
 	// "net/http/httptest"
-
 	"net/url"
 	"os"
 	"strings"
@@ -21,18 +18,6 @@ import (
 )
 
 var verbose = false
-
-// var jsonBlob = []byte(`[
-// 	{"Name": "Platypus", "Order": "Monotremata"},
-// 	{"Name": "Quoll",    "Order": "Dasyuromorphia"}
-// ]`)
-
-var H1 = `[{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}]`
-
-var HARDCODE_RESP = []byte(
-	`{"entries": [{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}], "id": "0a9bcb62-27ff-40eb-ab7d-9bc5ffb6937e"}`)
-
-var SAMP_POST = []byte(`{"storyid": "3a2065d0-f05c-11e9-96b5-f9761519014a","timestamp": "2019-10-16T21:12:18.000Z","lat": 9,"long": 9,"text": "helloworld","hasimage": false}`)
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -55,8 +40,8 @@ type Post struct {
 }
 
 type ResponseObj struct {
-	Posts []Post `json:"entries"` // TODO:
-	ID    string `json:"id"`      // TODO:
+	Posts []Post `json:"entries"` 
+	ID    string `json:"id"`     
 }
 
 // View request passes top-left and bottom-right coords
@@ -191,7 +176,6 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 
 // Call this after receiving server response to view for posts
 func getPosts(body []byte) ([]Post, error) {
-	// Todo: probably revise to return the entire response struct
 	var posts []Post
 	err := json.Unmarshal(body, &posts)
 	if err != nil {
@@ -327,21 +311,27 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 			}
 		}
 
-		res, _ := http.DefaultClient.Do(newReq)
+		res, err := http.DefaultClient.Do(newReq)
+		if err != nil {
+			log.Printf("Error when sending request", err)
+		} else {
+
 		defer res.Body.Close()
 		// Todo: do we close the response appropriately?
 		// when do we want to process it?
 		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 		var responseObj ResponseObj
 		json.NewDecoder(res.Body).Decode(&responseObj)
-		body, _ := ioutil.ReadAll(res.Body) //
-		if err := json.Unmarshal([]byte(body), &responseObj); err != nil {						                                log.Fatal(err)									        }
+		body, bodyErr := ioutil.ReadAll(res.Body)
+		if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+			log.Fatal(unmarshalErr)
+		}
 		processResponse(responseObj)
 		// Note that ServeHttp is non blocking and uses a go routine under the hood
 		if verbose {
 			fmt.Printf("Request served to reverse proxy for %s\n", target[i])
 		}
-		// proxy.ServeHTTP(newRes, newReq)
+	}
 	}
 }
 
@@ -377,6 +367,9 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 
 		urlArray := make([]string, 0, len(urls))
 		for url := range urls {
+			if verbose {
+				fmt.Printf("URL serving to: %s", url)
+			}
 			// todo: make sure that this is returning the actual url and not index
 			logViewRequestPayload(requestPayload, url)
 			if url == ERROR_URL {
@@ -483,9 +476,6 @@ func processResponse(response ResponseObj) {
 				pl.PushToCapacity(entriesToServe, &responseEntry)
 				// TODO: COME BACK HERE AND MAKE SURE IT'S ALRIGHT
 			}
-			// Todo: figure out above method calls and use of structs vs pointers
-			// Simulate actual responses if possible
-			// Do i store the heaps in the map as pointers? or the struct itself?
 			if responsesMap[id] == 0 {
 				readyToServe = true
 			}
@@ -518,21 +508,19 @@ func getResponse(id uuid.UUID) PostList {
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
-	var responseEntries = getResponse(id) // TODO
+	var responseEntries = getResponse(id)
 	// First marshal the response
 	var data, _ = json.Marshal(responseEntries)
-	// todo: can we marshal list with some empty elements?
 
 	// Get the response writer
 	var resWriter = responseWriterMap[id]
 	resWriter.Write(data)
-	// if verbose { // maybe write otu
-	// 	fmt.Printf()
-	// }
+	if verbose { // maybe write otu
+	 	fmt.Printf()
+	}
 
 	// Clean up
 	multiServerMapCleanup(id)
-	// todo: how will we delay sending the response? I.e. how do we retain which client to send to?
 	// serve the request to the client
 }
 
@@ -554,31 +542,6 @@ func main() {
 	fmt.Printf("Map set up\n")
 	// start server
 	http.HandleFunc("/", handleRequestAndRedirect)
-
-	// TESTING
-	// var post Post
-	var responseObj ResponseObj
-	var posts [3]Post
-	// r := bytes.NewReader(HARDCODE_RESP)
-	// json.NewDecoder(r).Decode(&responseObj)
-	// fmt.Println(responseObj.Posts[0].Text)
-	// json.Unmarshal([]byte(HARDCODE_RESP), &responseObj)
-	if err := json.Unmarshal([]byte(HARDCODE_RESP), &responseObj); err != nil {
-				log.Fatal(err)
-	}
-	var post1 = responseObj.Posts[0]
-	posts[0]=post1
-	posts[2]=post1
-	//json.Unmarshal([]byte(H1), &posts)
-	// json.Unmarshal([]byte(SAMP_POST), &post)
-	// fmt.Println(post)
-
-	var data, _ = json.Marshal(posts)
-	fmt.Println(string(data))
-	//fmt.Println(posts)
-	//fmt.Println(responseObj)
-	// fmt.Println(responseObj.ID)
-	// TESTING
 
 	//Initialize ticker + channel + run in parallel
 	ticker := time.NewTicker(5000 * time.Millisecond)
