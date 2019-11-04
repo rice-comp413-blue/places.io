@@ -1,6 +1,8 @@
 # Start from the latest golang base image
 FROM golang:latest
 
+RUN go get -u github.com/NYTimes/gziphandler
+
 # Add Maintainer Info
 LABEL maintainer="Jacob Diaz <cjdiaz98@gmail.com>"
 
