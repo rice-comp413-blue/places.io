@@ -24,6 +24,7 @@ app.get('/', (request, response) => {
 });
 
 app.get('/test', db.getTest);
+
 app.post('/test', db.postTest);
 
 app.get('/health', story.healthStory); // health check
@@ -32,6 +33,8 @@ app.get('/health', story.healthStory); // health check
 app.post('/submit', upload.single('file'), story.createStory); // create story
 
 app.post('/view', validationMiddleware.validViewRequestProperties, story.getStoriesInBox); // view stories
+
+app.get('/count', story.getTotalStoryCount); // count stories
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);

@@ -14,6 +14,17 @@ const getStoriesInBox = (req, res) => {
     });
 };
 
+const getTotalStoryCount = (req, res) => {
+    boxModel.getTotalStoryCount(req.body, (err, count) => {
+        if (err) {
+            res.status(404).json(err.toString());
+            throw err;
+        } else {
+            res.status(200).json({"count": count});
+        }
+    })
+}
+
 const createStory = (req, res) => {
     let newStory = new storyModel(req.body);
 
@@ -51,5 +62,6 @@ const healthStory = (req, res) => {
 module.exports = {
     createStory,
     getStoriesInBox,
-    healthStory
+    getTotalStoryCount,
+    healthStory,
 };
