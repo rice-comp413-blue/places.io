@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	uuid "github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
+	"net/http/httputil"
+
+	uuid "github.com/google/uuid"
+
 	// "net/http/httptest"
 	"net/url"
 	"os"
@@ -41,8 +44,8 @@ type Post struct {
 }
 
 type ResponseObj struct {
-	Posts []Post `json:"entries"` 
-	ID    string `json:"id"`     
+	Posts []Post `json:"entries"`
+	ID    string `json:"id"`
 }
 
 // View request passes top-left and bottom-right coords
@@ -86,7 +89,7 @@ const entriesToServe = 10 // Currently hard-coded. do we want to take this in fr
 // Map of UUID to response writer
 var responseWriterMap map[uuid.UUID]http.ResponseWriter = make(map[uuid.UUID]http.ResponseWriter)
 
-// Map of UUID to mutex. Each mutex regulates access to the entries of the map corresponding to the respective UUID. 
+// Map of UUID to mutex. Each mutex regulates access to the entries of the map corresponding to the respective UUID.
 var requestMutexMap map[uuid.UUID]sync.Mutex = make(map[uuid.UUID]sync.Mutex)
 
 // Mutex for regulating access to below maps. Must have this mutex before attempting to add or delete to the map
@@ -297,7 +300,6 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		return
 	}
 	buff := bytes.NewBuffer(body)
-	viewRequest := false
 	if id != uuid.Nil {
 		// Edit request body to include id
 		bodyStr := buff.String()
@@ -312,7 +314,16 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		buff.WriteString(",\n  \"id\": " + id.String())
 		buff.WriteString(string(runes[i:len(runes)]))
 		setupTimer(id)
-		viewRequest = true
+	} else {
+		// Then we just have a submit request.
+		// We only have to send it to a single server
+		url, _ := url.Parse(target[0])
+		proxy := httputil.NewSingleHostReverseProxy()
+		req.URL.Host = url.Host
+		req.URL.Scheme = url.Scheme
+		req.Host = url.Host
+		proxy.ServeHTTP(res, req)
+		return 
 	}
 
 	// Send to other servers for view request
@@ -337,54 +348,50 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				newReq.Header.Add(header, value)
 			}
 		}
-		if viewRequest {
 		res, err := http.DefaultClient.Do(newReq)
 		if err != nil {
 			log.Printf("Error when sending request", err)
 		} else {
 
-		defer res.Body.Close()
-		// Todo: do we close the response appropriately?
-		// when do we want to process it?
-		// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
-		var responseObj ResponseObj
-		//fmt.Println(res.Body)
-		
-		/*
-		dec := json.NewDecoder(res.Body)
-		decErr := dec.Decode(&responseObj)
-		
-		if decErr != nil {
-			log.Fatal(decErr)
+			defer res.Body.Close()
+			// Todo: do we close the response appropriately?
+			// when do we want to process it?
+			// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
+			var responseObj ResponseObj
+			//fmt.Println(res.Body)
+
+			/*
+				dec := json.NewDecoder(res.Body)
+				decErr := dec.Decode(&responseObj)
+
+				if decErr != nil {
+					log.Fatal(decErr)
+				}
+				if verbose {
+					fmt.Printf("%v", responseObj)
+				}
+			*/
+			///*
+			body, bodyErr := ioutil.ReadAll(res.Body)
+			if bodyErr != nil {
+				log.Fatal(bodyErr)
+			}
+			/*
+				if verbose {
+					fmt.Println("Response body follows")
+					fmt.Println(body)
+				}*/
+
+			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+				log.Fatal(unmarshalErr)
+			}
+			//*/
+			processResponse(responseObj)
+			if verbose {
+				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+				fmt.Printf("%v", responseObj)
+			}
 		}
-		if verbose {
-			fmt.Printf("%v", responseObj)
-		}
-		*/
-		///*
-		body, bodyErr := ioutil.ReadAll(res.Body)
-		if bodyErr != nil {
-			log.Fatal(bodyErr)
-		}
-		/*
-		if verbose {
-			fmt.Println("Response body follows")
-			fmt.Println(body)
-		}*/
-		
-		if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
-			log.Fatal(unmarshalErr)
-		}
-		//*/
-		processResponse(responseObj)
-		if verbose {
-			fmt.Printf("Request served to reverse proxy for %s\n", target[i])
-			fmt.Printf("%v", responseObj)
-		}
-	} else {
-		
-	}
-	}
 	}
 }
 
@@ -418,7 +425,7 @@ func setupTimer(id uuid.UUID) {
 			}
 		}
 		/*
-		If the mutex isn't in the map, then this means that the request has already been served. In this case, we do nothing. 
+			If the mutex isn't in the map, then this means that the request has already been served. In this case, we do nothing.
 		*/
 	})
 }
@@ -585,12 +592,12 @@ func getResponse(id uuid.UUID) PostList {
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
-        var requestMutex = requestMutexMap[id]
+	var requestMutex = requestMutexMap[id]
 	requestMutex.Lock() // We lock here in case we have two or more responses arrive after timeout
-	// We don't want both responses triggering us to serve the response. 
+	// We don't want both responses triggering us to serve the response.
 	// This shouldn't be a problem if all responses arrive in a timely manner though
 	defer requestMutex.Unlock()
-	
+
 	var responseEntries = getResponse(id)
 	// First marshal the response
 	var data, _ = json.Marshal(responseEntries)
@@ -603,9 +610,9 @@ func serveResponseThenCleanup(id uuid.UUID) {
 	var resWriter = responseWriterMap[id]
 	resWriter.Write(data_b)
 	/*
-	if verbose { // maybe write otu
-		fmt.Printf()
-	}
+		if verbose { // maybe write otu
+			fmt.Printf()
+		}
 	*/
 	// Clean up
 	multiServerMapCleanup(id)
