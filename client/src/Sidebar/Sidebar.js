@@ -6,9 +6,8 @@ import { SegmentedControl } from 'segmented-control'
 
 const Sidebar = (props) => {
     const updateMode = (newMode) => props.updateModeFunc(newMode);
-    const feed = ['This', 'is', 'the', 'feed'];
     return (
-        <div>
+        <div className="sidebar">
             <SegmentedControl
                 name="modeToggle"
                 options={[
@@ -18,7 +17,7 @@ const Sidebar = (props) => {
                 setValue={newMode => updateMode(newMode)}
                 style={{ width: '100%', color: '#2980b9' }} // purple400
             />
-            {props.mode === 'view' ? <Feed elements={feed} /> : <Form updateLatLngFunc={props.updateLatLngFunc.bind(this)} curLatLng={props.curLatLng}></Form>}
+            {props.mode === 'view' ? <Feed elements={props.feed} /> : <Form updateLatLngFunc={props.updateLatLngFunc.bind(this)} curLatLng={props.curLatLng}></Form>}
         </div>
     )
 
