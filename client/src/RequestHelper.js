@@ -15,7 +15,8 @@ const RequestHelper = {
     submitPlace: (text, coordinate, file) => {
         const form = new FormData();
         form.append('text', text);
-        form.append('coordinate', JSON.stringify(coordinate));
+        form.append('lat', coordinate[0]);
+        form.append('lng', coordinate[1]);
         form.append('timestamp', new Date());
 
         if (file === null) {
@@ -24,16 +25,12 @@ const RequestHelper = {
         else {      //  file exists
             form.append('file', file);
         }
-        axios.post('', form, {
+        return axios.post('', form, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             }
         });
 
-        console.log(form.get('text'));
-        console.log(form.get('coordinate'));
-        console.log(form.get('timestamp'));
-        console.log(form.get('file'));
 
 
         // TODO: update to multipart form data
