@@ -233,7 +233,12 @@ func parseCoord(coord []float64) Coord {
 }
 
 func rangesOverlap(start1 float64, end1 float64, start2 float64, end2 float64) bool {
-	return math.Min(end1, end2) >= math.Max(start1, start2)
+	overlap := math.Min(end1, end2) >= math.Max(start1, start2)
+	// Below two cases account for case where one interval encompasses the other
+	overlap = overlap || (start1 < start2 && end1 > end2)
+	overlap = overlap || (start2 < start1 && end2 > end1)
+	//fmt.Println(overlap)
+	return overlap
 }
 
 // Get url for a coord of request. We may not need this anymore after changing logic to
@@ -259,13 +264,20 @@ func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 	// Parse each coord
 	topLeft := parseCoord(rawCoord1)
 	bottomRight := parseCoord(rawCoord2)
-
+	//fmt.Printf("%v",topLeft)
+	//fmt.Printf("%v",bottomRight)
+	
 	for latRange := range data {
+		//fmt.Printf("%v",latRange)
 		if rangesOverlap(topLeft.Lat, bottomRight.Lat, latRange.Low, latRange.High) {
+			//fmt.Printf("%v",latRange)
 			for lngRange := range data[latRange] {
 				if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange.Low, lngRange.High) {
 					// Check if we have already added url
 					urlString := os.Getenv(data[latRange][lngRange])
+					if verbose {
+						fmt.Println(urlString)
+					}
 					// url, exists := urls[urlString]
 					if !urls[urlString] {
 						urls[urlString] = true
@@ -289,10 +301,30 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 	return getProxyURL(coord)
 }
 
+func isJSON(s string) bool {
+	    var js map[string]interface{}
+	    return json.Unmarshal([]byte(s), &js) == nil
+}
+
 // Serve a reverse proxy for a given url
-// TODO include uuid as an argument
 func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	if id == uuid.Nil {
+		// Then we just have a submit request.
+		// We only have to send it to a single server. 
+		// Just process it normally
+		if verbose {
+			fmt.Println("Making submit request")
+		}
+		url, _ := url.Parse(target[0])
+		proxy := httputil.NewSingleHostReverseProxy(url)
+		req.URL.Host = url.Host
+		req.URL.Scheme = url.Scheme
+		req.Host = url.Host
+		proxy.ServeHTTP(res, req)
+		return
+	}
+
 	// Read body to buffer
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -300,7 +332,6 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		return
 	}
 	buff := bytes.NewBuffer(body)
-	if id != uuid.Nil {
 		// Edit request body to include id
 		bodyStr := buff.String()
 		// This is where we want to insert the id param
@@ -314,20 +345,12 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		buff.WriteString(",\n  \"id\": " + id.String())
 		buff.WriteString(string(runes[i:len(runes)]))
 		setupTimer(id)
-	} else {
-		// Then we just have a submit request.
-		// We only have to send it to a single server
-		url, _ := url.Parse(target[0])
-		proxy := httputil.NewSingleHostReverseProxy()
-		req.URL.Host = url.Host
-		req.URL.Scheme = url.Scheme
-		req.Host = url.Host
-		proxy.ServeHTTP(res, req)
-		return 
-	}
-
+	
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
+		if verbose {
+			fmt.Println("making view request")
+		}
 		// parse the url
 		url, _ := url.Parse(target[i])
 		newReqBody := ioutil.NopCloser(buff)
@@ -342,7 +365,8 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		newReq.URL.Host = url.Host
 		newReq.URL.Scheme = url.Scheme
 		newReq.Host = url.Host
-
+		newReq.Header.Set("content-type","application/json; charset=UTF-8")
+		fmt.Printf("cont-type: %s \n", newReq.Header.Get("content-type"))
 		for header, values := range req.Header {
 			for _, value := range values {
 				newReq.Header.Add(header, value)
@@ -352,15 +376,25 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		if err != nil {
 			log.Printf("Error when sending request", err)
 		} else {
-
+			fmt.Println(res.Body)
 			defer res.Body.Close()
 			// Todo: do we close the response appropriately?
 			// when do we want to process it?
 			// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 			var responseObj ResponseObj
-			//fmt.Println(res.Body)
-
 			/*
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(res.Body)
+			fmt.Println(isJSON(buf.String()))
+			// https://stackoverflow.com/questions/22128282/how-to-check-string-is-in-json-format
+			*/
+			for k, v := range res.Header {
+			fmt.Print(k)
+			fmt.Print(" : ")
+			fmt.Println(v)
+			}
+			///*
+				continue;
 				dec := json.NewDecoder(res.Body)
 				decErr := dec.Decode(&responseObj)
 
@@ -370,19 +404,21 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				if verbose {
 					fmt.Printf("%v", responseObj)
 				}
-			*/
-			///*
+			//*/
+			/*
 			body, bodyErr := ioutil.ReadAll(res.Body)
 			if bodyErr != nil {
+				log.Println("Body error")
 				log.Fatal(bodyErr)
 			}
-			/*
+			///*
 				if verbose {
 					fmt.Println("Response body follows")
 					fmt.Println(body)
-				}*/
+				}
 
 			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+				log.Println("Unmarshal error")
 				log.Fatal(unmarshalErr)
 			}
 			//*/
@@ -442,11 +478,14 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
-		fmt.Printf("View request received\n")
 		var tag = uuid.New()
 		requestPayload := parseViewRequestBody(req)
 		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
-		fmt.Printf("Conditional url(s) attained\n")
+		if verbose {
+			fmt.Printf("View request received\n")
+			fmt.Printf("Conditional url(s) attained\n")
+			fmt.Println(urls)
+		}
 		// Create an entry in our response map
 
 		var responseCount = 0
