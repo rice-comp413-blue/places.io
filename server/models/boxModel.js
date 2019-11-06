@@ -8,6 +8,7 @@ class Box {
     constructor(box) {
         this.latlng1 = box.latlng1;
         this.latlng2 = box.latlng2;
+        this.id = box.id;
     }
 
     static getStoriesInBox(box, result) {

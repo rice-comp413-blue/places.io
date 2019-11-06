@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+        "flag"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	"io/ioutil"
 	"log"
 	"math"
@@ -14,6 +16,8 @@ import (
 	"strings"
 	"time"
 )
+
+var verbose = false
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -37,6 +41,17 @@ type viewRequestPayloadStruct struct {
 // "coordinate": [-20.3, 60]
 type submitRequestPayloadStruct struct {
 	LatLng []float64 `json:"coordinate"`
+}
+
+type requestHandler struct {
+}
+
+
+type healthResponse struct {
+  Image_url string
+  Storyid string
+  Text string
+
 }
 
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
@@ -132,7 +147,8 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	if err != nil {
 		panic(err)
 	}
-
+	fmt.Println("Printing view payload")
+        fmt.Printf("%+v\n",requestPayload)
 	return requestPayload
 }
 
@@ -292,7 +308,7 @@ func enableCors(w *http.ResponseWriter) {
 }
 
 // Given a request send it to the appropriate url
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
 		fmt.Printf("Preflight request received\n")
@@ -328,7 +344,6 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		url := getSubmitProxyUrl(requestPayload.LatLng)
 		fmt.Printf("Conditional url attained\n")
 		logSubmitRequestPayload(requestPayload, url)
-
 		if url == ERROR_URL {
 			fmt.Printf("Error: Could not send request due to incorrect request body\n")
 			return
@@ -341,6 +356,26 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+
+func checkMatches(resp *http.Response) bool {
+	var p []byte
+
+	if resp.ContentLength < 0 {
+        fmt.Println("No Data returned")
+        return (false)
+    }
+    p = make([]byte, resp.ContentLength)
+    resp.Body.Read(p)
+    healthJson := string(p)
+    var healthResp []healthResponse	
+	json.Unmarshal([]byte(healthJson), &healthResp)
+    if (healthResp[0].Image_url == "https://comp413-places.s3.amazonaws.com/1572467590447health.jpg"){
+    	//fmt.Println("Response OK")
+    	return(true)
+    }
+
+	return (false)
+}
 // This function is called on a timer and pings both
 // servers with a GET request. A 302 response is expected
 // but not yet explicity checked
@@ -359,11 +394,18 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 			    CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			      return http.ErrUseLastResponse
 			  } }
-			fmt.Println("HEALTH CHECK")
+			//fmt.Println("HEALTH CHECK")
 
 			if (pingA) {
-				_, err := client.Get(os.Getenv("A_CONDITION_URL"))
+				resp, err := client.Get(os.Getenv("A_CONDITION_URL") + "/health")
 				
+				valid := checkMatches(resp)
+
+				if (valid != true) {
+					fmt.Println("Error in response JSON")
+					modifyMap(0)
+					pingA = false
+				}
 
 				//What should we do if we run into an error? Right now just printing it
 				if err != nil {
@@ -377,7 +419,14 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 
 			
 			if (pingB) {
-				_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
+				resp, err2 := client.Get(os.Getenv("B_CONDITION_URL")+ "/health")
+				valid := checkMatches(resp)
+
+				if (valid != true) {
+					fmt.Println("Error in response JSON")
+					modifyMap(1)
+					pingB = false
+				}
 
 				if err2 != nil {
 					fmt.Println(err2)
@@ -396,11 +445,19 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-
-	fmt.Printf("Map set up\n")
-
+	flag.BoolVar(&verbose,"v", false, "a bool")
+	flag.Parse()
+	if verbose {
+		fmt.Println("Verbose mode")
+		fmt.Printf("Map set up\n")
+	}
+	rh := &requestHandler{}
 	// start server
-	http.HandleFunc("/", handleRequestAndRedirect)
+
+	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header. 
+	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
+	gzHandleFunc := gziphandler.GzipHandler(rh)
+	http.Handle("/", gzHandleFunc)
 
 	//Initialize ticker + channel + run in parallel
 	ticker := time.NewTicker(5000 * time.Millisecond)

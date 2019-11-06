@@ -9,23 +9,25 @@ class Story {
     // Story object constructor
     constructor(story) {
         this.storyid = uuid.v1();
-        this.coordinate = story.coordinate;
+        this.lat = story.lat;
+        this.lng = story.lng;
         this.timestamp = story.timestamp;
         this.text = story.text;
-        this.hasimage = false;
+        // TODO: this is prob not the right way to handle this, discuss a fix for this
+        this.image_url = null;
     }
 
-    updateImageFlag(flag) {
-        this.hasimage = flag;
+
+    updateImageUrl(url) {
+        this.image_url = url;
     }
 
     static createStory(story, result) {
-
         pool.query("INSERT INTO story " +
-            "(storyid, lat, long, timestamp, text, hasimage) values " +
+            "(storyid, lat, long, timestamp, text, image_url) values " +
             "($1, $2, $3, $4, $5, $6)",
-            [story.storyid, story.coordinate[0], story.coordinate[1],
-                story.timestamp, story.text, story.hasimage],
+            [story.storyid, story.lat, story.lng,
+                story.timestamp, story.text, story.image_url],
             function (err, record) {
                 if (err) {
                     console.log("error: ", err);
