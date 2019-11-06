@@ -451,6 +451,9 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		return
 	}
 
+		if verbose {
+			fmt.Println("Making view request")
+		}
 	// Read body to buffer
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -499,8 +502,13 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 			log.Printf("Error when sending request", err)
 		} else {
 			defer res.Body.Close()
-			var responseObj ResponseObj
+			//var responseObj ResponseObj
 
+			for k, v := range res.Header {
+				fmt.Print(k)
+				fmt.Print(" : ")
+				fmt.Println(v)
+			}
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -509,13 +517,15 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		loop:
 			for {
 				tt := htmlTokens.Next()
-				fmt.Printf("%T", tt)
+				t := htmlTokens.Token()
+				//fmt.Printf("%T", tt)
 				switch tt {
 				case html.ErrorToken:
 					fmt.Println("End")
 					break loop
 				case html.TextToken:
 					fmt.Println(tt)
+					fmt.Printf("Data: %s \n", t.Data)
 				case html.StartTagToken:
 					t := htmlTokens.Token()
 					isAnchor := t.Data == "a"
@@ -524,7 +534,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 					}
 				}
 			}
-
+			/*
 			body, bodyErr := ioutil.ReadAll(res.Body)
 			if bodyErr != nil {
 				log.Fatal(bodyErr)
@@ -538,6 +548,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
 				fmt.Printf("%v", responseObj)
 			}
+			*/
 		}
 	}
 }
