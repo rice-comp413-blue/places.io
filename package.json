@@ -12,9 +12,13 @@
     "aws:setup": "scripty",
     "aws:servicediscovery:create": "scripty",
     "aws:servicediscovery:list": "scripty",
+    "aws:servicediscovery:delete": "scripty",
     "aws:ecs:createcluster": "scripty",
     "aws:ecs:registertask": "scripty",
-    "aws:ecs:createservice": "scripty"
+    "aws:ecs:createservice": "scripty",
+    "aws:ecs:deregisterservice": "scripty",
+    "aws:ecs:deleteservice": "scripty",
+    "aws:ecs:deletecluster": "scripty"
   },
   "repository": {
     "type": "git",

@@ -69,4 +69,16 @@ Use `npm run aws:ecs:registertask -- <task_json> <region>`
 
 Use `npm run aws:ecs:createservice -- <service_json> <region>`
 
+## Utility
+
 Use `npm run aws:servicediscovery:list -- <service_name> <dns_namespace> <region> <cluster_name>`
+
+## Cleanup
+
+Use `npm run aws:ecs:deregisterservice -- <service_id> <instance_id> <region>`
+
+Use `npm run aws:ecs:deleteservice -- <service_name> <cluster_name> <region>`
+
+Use `npm run aws:ecs:deletecluster -- <cluster_name> <region>`
+
+Use `npm run aws:servicediscovery:delete -- <service_id> <dns_namespace> <region>`

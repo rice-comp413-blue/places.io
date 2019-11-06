@@ -1,0 +1,6 @@
+ID="$1"
+NAMESPACE="$2"
+REGION="$3"
+
+aws servicediscovery delete-service --id "$ID" --region "$REGION"
+aws servicediscovery delete-namespace --id "$NAMESPACE" --region "$REGION"

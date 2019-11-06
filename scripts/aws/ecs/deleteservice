@@ -1,0 +1,6 @@
+SERVICE_NAME="$1"
+CLUSTER_NAME="$2"
+REGION="$3"
+
+aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" --desired-count 0 --force-new-deployment --region "$REGION"
+aws ecs delete-service --cluster tutorial --service "$SERVICE_NAME" --region "$REGION"
