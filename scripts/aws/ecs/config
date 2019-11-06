@@ -1,1 +1,0 @@
-ecs-cli configure --cluster "$1" --default-launch-type EC2 --config-name "$1" --region "$2"

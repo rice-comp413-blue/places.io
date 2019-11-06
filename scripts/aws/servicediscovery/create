@@ -1,0 +1,7 @@
+NAME="$1"
+NAMESPACE="$2"
+REGION="$3"
+
+OPERATION_ID=$(aws servicediscovery create-private-dns-namespace --name "$NAMESPACE" --vpc vpc-0a639bd3395a8ad13 --region "$REGION" | jq '.OperationId'
+NAMESPACE_ID=$(aws servicediscovery get-operation --operation-id "$OPERATION_ID" | jq '.Operation.Targets.NAMESPACE')
+aws servicediscovery create-service --name "$NAME" --dns-config 'NamespaceId="$NAMESPACE_ID",DnsRecords=[{Type="A",TTL="300"}]' --health-check-custom-config FailureThreshold=1 --region "$REGION"
