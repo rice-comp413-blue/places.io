@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"golang.org/x/net/html"	
+ 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -346,17 +347,6 @@ func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Requ
 		buff.WriteString(",\n  \"id\": " + id.String())
 		buff.WriteString(string(runes[i:len(runes)]))
 		setupTimer(id)
-	} else {
-		// Then we just have a submit request.
-		// We only have to send it to a single server
-		url, _ := url.Parse(target[0])
-		proxy := httputil.NewSingleHostReverseProxy(url)
-		req.URL.Host = url.Host
-		req.URL.Scheme = url.Scheme
-		req.Host = url.Host
-		proxy.ServeHTTP(res, req)
-		return
-	}
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
