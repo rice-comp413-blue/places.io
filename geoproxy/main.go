@@ -291,7 +291,7 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 
 // Serve a reverse proxy for a given url
 // TODO include uuid as an argument
-func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
+func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	// Read body to buffer
 	body, err := ioutil.ReadAll(req.Body)
@@ -318,12 +318,12 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// Then we just have a submit request.
 		// We only have to send it to a single server
 		url, _ := url.Parse(target[0])
-		proxy := httputil.NewSingleHostReverseProxy()
+		proxy := httputil.NewSingleHostReverseProxy(url)
 		req.URL.Host = url.Host
 		req.URL.Scheme = url.Scheme
 		req.Host = url.Host
 		proxy.ServeHTTP(res, req)
-		return 
+		return
 	}
 
 	// Send to other servers for view request
@@ -386,6 +386,111 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				log.Fatal(unmarshalErr)
 			}
 			//*/
+			processResponse(responseObj)
+			if verbose {
+				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+				fmt.Printf("%v", responseObj)
+			}
+		}
+	}
+}
+
+func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	// Read body to buffer
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		return
+	}
+	buff := bytes.NewBuffer(body)
+	if id != uuid.Nil {
+		// Edit request body to include id
+		bodyStr := buff.String()
+		// This is where we want to insert the id param
+		i := strings.LastIndex(bodyStr, "\n}")
+		// Convert to runes to split
+		runes := []rune(bodyStr)
+		// Left side string of \n}
+		leftStr := string(runes[0:i])
+		buff = bytes.NewBufferString(leftStr)
+		// Concatenate new id param and request body remainder
+		buff.WriteString(",\n  \"id\": " + id.String())
+		buff.WriteString(string(runes[i:len(runes)]))
+		setupTimer(id)
+	} else {
+		// Then we just have a submit request.
+		// We only have to send it to a single server
+		url, _ := url.Parse(target[0])
+		proxy := httputil.NewSingleHostReverseProxy(url)
+		req.URL.Host = url.Host
+		req.URL.Scheme = url.Scheme
+		req.Host = url.Host
+		proxy.ServeHTTP(res, req)
+		return
+	}
+
+	// Send to other servers for view request
+	for i := 0; i < len(target); i++ {
+		// parse the url
+		url, _ := url.Parse(target[i])
+		newReqBody := ioutil.NopCloser(buff)
+
+		// reusing requests is unreliable, so copy to new request
+		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
+		if err != nil {
+			log.Printf("Error creating new request: %v", err)
+			continue
+		}
+		// Update the headers to allow for SSL redirection
+		newReq.URL.Host = url.Host
+		newReq.URL.Scheme = url.Scheme
+		newReq.Host = url.Host
+
+		for header, values := range req.Header {
+			for _, value := range values {
+				newReq.Header.Add(header, value)
+			}
+		}
+		res, err := http.DefaultClient.Do(newReq)
+		if err != nil {
+			log.Printf("Error when sending request", err)
+		} else {
+			defer res.Body.Close()
+			var responseObj ResponseObj
+
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer res.Body.Close()
+			htmlTokens := html.NewTokenizer(res.Body)
+		loop:
+			for {
+				tt := htmlTokens.Next()
+				fmt.Printf("%T", tt)
+				switch tt {
+				case html.ErrorToken:
+					fmt.Println("End")
+					break loop
+				case html.TextToken:
+					fmt.Println(tt)
+				case html.StartTagToken:
+					t := htmlTokens.Token()
+					isAnchor := t.Data == "a"
+					if isAnchor {
+						fmt.Println("We found an anchor!")
+					}
+				}
+			}
+
+			body, bodyErr := ioutil.ReadAll(res.Body)
+			if bodyErr != nil {
+				log.Fatal(bodyErr)
+			}
+
+			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+				log.Fatal(unmarshalErr)
+			}
 			processResponse(responseObj)
 			if verbose {
 				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
