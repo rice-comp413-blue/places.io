@@ -31,8 +31,7 @@ AWS_ACCESS_KEY_ID=$(cat $CREDENTIAL_FILE | jq '.AWS.users.application.accessKeyI
 AWS_SECRET_ACCESS_KEY=$(cat $CREDENTIAL_FILE | jq '.AWS.users.application.secretAccessKey')
 
 # configure
-echo AWS_ACCESS_KEY_ID
-echo AWS_SECRET_ACCESS_KEY
-echo "RUNG THE FOLLOWING COMMAND!"
-echo `aws configure --access-key "$AWS_ACCESS_KEY_ID" --secret-key "$AWS_SECRET_ACCESS_KEY"`
+echo 'AWS_ACCESS_KEY_ID='"$AWS_ACCESS_KEY_ID"
+echo 'AWS_SECRET_ACCESS_KEY='"$AWS_SECRET_ACCESS_KEY"
+echo "RUN 'aws configure' TO COMPLETE SETUP!!!"
 # ecs-cli configure profile --profile-name "$USER" --access-key "$AWS_ACCESS_KEY_ID" --secret-key "$AWS_SECRET_ACCESS_KEY"
