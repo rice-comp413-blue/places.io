@@ -435,30 +435,13 @@ func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Requ
 
 func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	// Read body to buffer
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		return
-	}
-	buff := bytes.NewBuffer(body)
-	if id != uuid.Nil {
-		// Edit request body to include id
-		bodyStr := buff.String()
-		// This is where we want to insert the id param
-		i := strings.LastIndex(bodyStr, "\n}")
-		// Convert to runes to split
-		runes := []rune(bodyStr)
-		// Left side string of \n}
-		leftStr := string(runes[0:i])
-		buff = bytes.NewBufferString(leftStr)
-		// Concatenate new id param and request body remainder
-		buff.WriteString(",\n  \"id\": " + id.String())
-		buff.WriteString(string(runes[i:len(runes)]))
-		setupTimer(id)
-	} else {
+	if id == uuid.Nil {
 		// Then we just have a submit request.
-		// We only have to send it to a single server
+		// We only have to send it to a single server.
+		// Just process it normally
+		if verbose {
+			fmt.Println("Making submit request")
+		}
 		url, _ := url.Parse(target[0])
 		proxy := httputil.NewSingleHostReverseProxy(url)
 		req.URL.Host = url.Host
@@ -467,6 +450,27 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		proxy.ServeHTTP(res, req)
 		return
 	}
+
+	// Read body to buffer
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		log.Printf("Error reading body: %v", err)
+		return
+	}
+	buff := bytes.NewBuffer(body)
+	// Edit request body to include id
+	bodyStr := buff.String()
+	// This is where we want to insert the id param
+	i := strings.LastIndex(bodyStr, "\n}")
+	// Convert to runes to split
+	runes := []rune(bodyStr)
+	// Left side string of \n}
+	leftStr := string(runes[0:i])
+	buff = bytes.NewBufferString(leftStr)
+	// Concatenate new id param and request body remainder
+	buff.WriteString(",\n  \"id\": " + id.String())
+	buff.WriteString(string(runes[i:len(runes)]))
+	setupTimer(id)
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
