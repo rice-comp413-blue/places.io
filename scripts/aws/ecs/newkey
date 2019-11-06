@@ -1,0 +1,4 @@
+REGION="$1"
+KEYNAME="$USER"-"$REGION"-key
+ssh-keygen -t rsa -C "$KEYNAME" -f ~/.ssh/"$KEYNAME"
+aws ec2 import-key-pair --key-name "$KEYNAME" --public-key-material file://~/.ssh/"$KEYNAME".pub
