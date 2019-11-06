@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/html"	
- 	"io/ioutil"
+	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"net/http/httputil"
+
+	"golang.org/x/net/html"
 
 	uuid "github.com/google/uuid"
 
@@ -267,7 +268,7 @@ func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 	bottomRight := parseCoord(rawCoord2)
 	//fmt.Printf("%v",topLeft)
 	//fmt.Printf("%v",bottomRight)
-	
+
 	for latRange := range data {
 		//fmt.Printf("%v",latRange)
 		if rangesOverlap(topLeft.Lat, bottomRight.Lat, latRange.Low, latRange.High) {
@@ -303,8 +304,8 @@ func getSubmitProxyUrl(rawCoord []float64) string {
 }
 
 func isJSON(s string) bool {
-	    var js map[string]interface{}
-	    return json.Unmarshal([]byte(s), &js) == nil
+	var js map[string]interface{}
+	return json.Unmarshal([]byte(s), &js) == nil
 }
 
 // Serve a reverse proxy for a given url
@@ -313,7 +314,7 @@ func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Requ
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	if id == uuid.Nil {
 		// Then we just have a submit request.
-		// We only have to send it to a single server. 
+		// We only have to send it to a single server.
 		// Just process it normally
 		if verbose {
 			fmt.Println("Making submit request")
@@ -334,20 +335,19 @@ func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Requ
 		return
 	}
 	buff := bytes.NewBuffer(body)
-		// Edit request body to include id
-		bodyStr := buff.String()
-		// This is where we want to insert the id param
-		i := strings.LastIndex(bodyStr, "\n}")
-		// Convert to runes to split
-		runes := []rune(bodyStr)
-		// Left side string of \n}
-		leftStr := string(runes[0:i])
-		buff = bytes.NewBufferString(leftStr)
-		// Concatenate new id param and request body remainder
-		buff.WriteString(",\n  \"id\": " + id.String())
-		buff.WriteString(string(runes[i:len(runes)]))
-		setupTimer(id)
-
+	// Edit request body to include id
+	bodyStr := buff.String()
+	// This is where we want to insert the id param
+	i := strings.LastIndex(bodyStr, "\n}")
+	// Convert to runes to split
+	runes := []rune(bodyStr)
+	// Left side string of \n}
+	leftStr := string(runes[0:i])
+	buff = bytes.NewBufferString(leftStr)
+	// Concatenate new id param and request body remainder
+	buff.WriteString(",\n  \"id\": " + id.String())
+	buff.WriteString(string(runes[i:len(runes)]))
+	setupTimer(id)
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		if verbose {
@@ -367,7 +367,7 @@ func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Requ
 		newReq.URL.Host = url.Host
 		newReq.URL.Scheme = url.Scheme
 		newReq.Host = url.Host
-		newReq.Header.Set("content-type","application/json; charset=UTF-8")
+		newReq.Header.Set("content-type", "application/json; charset=UTF-8")
 		fmt.Printf("cont-type: %s \n", newReq.Header.Get("content-type"))
 		for header, values := range req.Header {
 			for _, value := range values {
@@ -385,45 +385,45 @@ func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Requ
 			// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 			var responseObj ResponseObj
 			/*
-			buf := new(bytes.Buffer)
-			buf.ReadFrom(res.Body)
-			fmt.Println(isJSON(buf.String()))
-			// https://stackoverflow.com/questions/22128282/how-to-check-string-is-in-json-format
+				buf := new(bytes.Buffer)
+				buf.ReadFrom(res.Body)
+				fmt.Println(isJSON(buf.String()))
+				// https://stackoverflow.com/questions/22128282/how-to-check-string-is-in-json-format
 			*/
 			for k, v := range res.Header {
-			fmt.Print(k)
-			fmt.Print(" : ")
-			fmt.Println(v)
+				fmt.Print(k)
+				fmt.Print(" : ")
+				fmt.Println(v)
 			}
 			///*
-				continue;
-				dec := json.NewDecoder(res.Body)
-				decErr := dec.Decode(&responseObj)
+			continue
+			dec := json.NewDecoder(res.Body)
+			decErr := dec.Decode(&responseObj)
 
-				if decErr != nil {
-					log.Fatal(decErr)
-				}
-				if verbose {
-					fmt.Printf("%v", responseObj)
-				}
+			if decErr != nil {
+				log.Fatal(decErr)
+			}
+			if verbose {
+				fmt.Printf("%v", responseObj)
+			}
 			//*/
 			/*
-			body, bodyErr := ioutil.ReadAll(res.Body)
-			if bodyErr != nil {
-				log.Println("Body error")
-				log.Fatal(bodyErr)
-			}
-			///*
-				if verbose {
-					fmt.Println("Response body follows")
-					fmt.Println(body)
+				body, bodyErr := ioutil.ReadAll(res.Body)
+				if bodyErr != nil {
+					log.Println("Body error")
+					log.Fatal(bodyErr)
 				}
+				///*
+					if verbose {
+						fmt.Println("Response body follows")
+						fmt.Println(body)
+					}
 
-			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
-				log.Println("Unmarshal error")
-				log.Fatal(unmarshalErr)
-			}
-			//*/
+				if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+					log.Println("Unmarshal error")
+					log.Fatal(unmarshalErr)
+				}
+				//*/
 			processResponse(responseObj)
 			if verbose {
 				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
