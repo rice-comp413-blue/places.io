@@ -1,1 +1,0 @@
-ecs-cli compose up --create-log-groups --cluster-config "$1" --ecs-profile "$USER"

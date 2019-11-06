@@ -10,11 +10,11 @@
   },
   "scripts": {
     "aws:setup": "scripty",
-    "aws:ecs:newkey": "scripty",
-    "aws:ecs:config": "scripty",
-    "aws:ecs:create": "scripty",
-    "aws:ecs:deploy": "scripty",
-    "aws:ecs:view": "scripty"
+    "aws:servicediscovery:create": "scripty",
+    "aws:servicediscovery:list": "scripty",
+    "aws:ecs:createcluster": "scripty",
+    "aws:ecs:registertask": "scripty",
+    "aws:ecs:createservice": "scripty"
   },
   "repository": {
     "type": "git",

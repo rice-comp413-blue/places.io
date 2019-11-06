@@ -1,0 +1,6 @@
+NAME="$1"
+NAMESPACE="$2"
+REGION="$3"
+CLUSTERNAME="$4"
+
+aws servicediscovery discover-instances --namespace-name "$NAMESPACE" --service-name "$NAME" --query-parameters ECS_CLUSTER_NAME="$CLUSTER_NAME" --region "$REGION"

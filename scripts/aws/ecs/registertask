@@ -1,0 +1,3 @@
+PATH_TO_TASK_JSON="$1"
+REGION="$2"
+aws ecs register-task-definition --cli-input-json file://"$PATH_TO_TASK_JSON" --region "$REGION"

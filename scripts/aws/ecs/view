@@ -1,1 +1,0 @@
-ecs-cli ps --cluster-config "$1" --ecs-profile "$USER"

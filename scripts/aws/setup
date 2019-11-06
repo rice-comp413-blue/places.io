@@ -3,12 +3,12 @@ OS="$1"
 
 # install
 if [[ "$OS" == "linux" ]]; then
-    sudo curl -o /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-linux-amd64-latest
+    # sudo curl -o /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-linux-amd64-latest
     if ! type "jq" > /dev/null; then
         sudo apt-get install jq
     fi
 elif [[ "$OS" == "macos" ]]; then
-    sudo curl -o /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-darwin-amd64-latest
+    # sudo curl -o /usr/local/bin/ecs-cli https://amazon-ecs-cli.s3.amazonaws.com/ecs-cli-darwin-amd64-latest
     if ! type "jq" > /dev/null; then
         brew install jq
     fi
@@ -18,8 +18,8 @@ pip install awscli
 
 
 # verify installation
-sudo chmod +x /usr/local/bin/ecs-cli
-ecs-cli --version
+# sudo chmod +x /usr/local/bin/ecs-cli
+# ecs-cli --version
 # sudo chmod +x jq
 jq --version
 aws --version
@@ -31,6 +31,8 @@ AWS_ACCESS_KEY_ID=$(cat $CREDENTIAL_FILE | jq '.AWS.users.application.accessKeyI
 AWS_SECRET_ACCESS_KEY=$(cat $CREDENTIAL_FILE | jq '.AWS.users.application.secretAccessKey')
 
 # configure
-# aws configure --access-key "$AWS_ACCESS_KEY_ID" --secret-key "$AWS_SECRET_ACCESS_KEY"
-ecs-cli configure profile --profile-name "$USER" --access-key "$AWS_ACCESS_KEY_ID" --secret-key "$AWS_SECRET_ACCESS_KEY"
-
+echo AWS_ACCESS_KEY_ID
+echo AWS_SECRET_ACCESS_KEY
+echo "RUNG THE FOLLOWING COMMAND!"
+echo `aws configure --access-key "$AWS_ACCESS_KEY_ID" --secret-key "$AWS_SECRET_ACCESS_KEY"`
+# ecs-cli configure profile --profile-name "$USER" --access-key "$AWS_ACCESS_KEY_ID" --secret-key "$AWS_SECRET_ACCESS_KEY"
