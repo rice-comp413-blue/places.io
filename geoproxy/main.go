@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"github.com/NYTimes/gziphandler"
 	"log"
 	"math"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"strconv"
 )
 
 var verbose = false
@@ -153,18 +156,23 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	request.ParseMultipartForm(0)
 	var LatLng []float64
-	latLngString := request.FormValue("coordinate")
-	var b = []byte(latLngString)
-	//fmt.Println(latLngString)
-	var requestPayload submitRequestPayloadStruct
-	err := json.Unmarshal(b, &LatLng)
-
-	requestPayload.LatLng = LatLng
-
+	lat := request.FormValue("lat")
+	lng := request.FormValue("lng")
+	var err error
+	LatLng[0], err = strconv.ParseFloat(lat, 64)
 	if err != nil {
 		panic(err)
 	}
-		
+
+	LatLng[1], err = strconv.ParseFloat(lng, 64)
+	if err != nil {
+		panic(err)
+	}
+
+
+	var requestPayload submitRequestPayloadStruct
+	requestPayload.LatLng = LatLng
+
 	return requestPayload
 }
 
