@@ -56,6 +56,7 @@ type ResponseObj struct {
 type viewRequestPayloadStruct struct {
 	LatLng1 []float64 `json:"latlng1"`
 	LatLng2 []float64 `json:"latlng2"`
+	ID string `json:"ID"`
 }
 
 // Submit request passes the coord to post
@@ -463,26 +464,50 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 	buff := bytes.NewBuffer(body)
 	// Edit request body to include id
 	bodyStr := buff.String()
-	// This is where we want to insert the id param
-	i := strings.LastIndex(bodyStr, "\n}")
+	// This is where we want to insert the id param	
+
+	/*i := strings.LastIndex(bodyStr, "\n}")
 	// Convert to runes to split
 	runes := []rune(bodyStr)
+	log.Printf("1 \n")
 	// Left side string of \n}
 	leftStr := string(runes[0:i])
+	log.Printf("1 \n")
 	buff = bytes.NewBufferString(leftStr)
 	// Concatenate new id param and request body remainder
 	buff.WriteString(",\n  \"id\": " + id.String())
 	buff.WriteString(string(runes[i:len(runes)]))
-	setupTimer(id)
+	log.Printf("2 \n")
+	log.Printf("3 \n")
+	*/
+	var vr viewRequestPayloadStruct 
+	unmarshalErr := json.Unmarshal([]byte(bodyStr), &vr)
+	if unmarshalErr != nil {
+		fmt.Println("Badly formatted request")
+	}
+	fmt.Println(vr.ID)
+	requestID, err := uuid.FromBytes([]byte(vr.ID))
+	
+	/*if err!= nil {
+		fmt.Println("Invalid uuid passed in")
+	}*/
+	
+	setupTimer(requestID)
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		// parse the url
 		url, _ := url.Parse(target[i])
 		newReqBody := ioutil.NopCloser(buff)
-
+		//fmt.Println(newReqBody)
 		// reusing requests is unreliable, so copy to new request
 		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
+		reqbuf := new(bytes.Buffer)
+		reqbuf.ReadFrom(req.Body) 
+		reqStr:=reqbuf.String()
+		fmt.Println("reqStr")
+		fmt.Println(reqStr)
+
 		if err != nil {
 			log.Printf("Error creating new request: %v", err)
 			continue
@@ -494,6 +519,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 
 		for header, values := range req.Header {
 			for _, value := range values {
+				fmt.Printf("head: %s, val: %s \n", header, value)
 				newReq.Header.Add(header, value)
 			}
 		}
@@ -503,6 +529,15 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		} else {
 			defer res.Body.Close()
 			//var responseObj ResponseObj
+			//fmt.Println(res.Body)
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(res.Body)
+			newStr:=buf.String()
+			fmt.Println(newStr)
+			/*
+			if bodyErr != nil {
+				fmt.Println("body error")
+			}*/
 
 			for k, v := range res.Header {
 				fmt.Print(k)
@@ -512,8 +547,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer res.Body.Close()
-			htmlTokens := html.NewTokenizer(res.Body)
+			htmlTokens := html.NewTokenizer(bytes.NewReader(buf.Bytes()))
 		loop:
 			for {
 				tt := htmlTokens.Next()
