@@ -451,9 +451,9 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		return
 	}
 
-		if verbose {
-			fmt.Println("Making view request")
-		}
+	if verbose {
+		fmt.Println("Making view request")
+	}
 	// Read body to buffer
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -463,8 +463,9 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 	buff := bytes.NewBuffer(body)
 	// Edit request body to include id
 	bodyStr := buff.String()
+
 	// This is where we want to insert the id param
-	i := strings.LastIndex(bodyStr, "\n}")
+	i := strings.LastIndex(bodyStr, "}")
 	// Convert to runes to split
 	runes := []rune(bodyStr)
 	// Left side string of \n}
@@ -535,19 +536,19 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				}
 			}
 			/*
-			body, bodyErr := ioutil.ReadAll(res.Body)
-			if bodyErr != nil {
-				log.Fatal(bodyErr)
-			}
+				body, bodyErr := ioutil.ReadAll(res.Body)
+				if bodyErr != nil {
+					log.Fatal(bodyErr)
+				}
 
-			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
-				log.Fatal(unmarshalErr)
-			}
-			processResponse(responseObj)
-			if verbose {
-				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
-				fmt.Printf("%v", responseObj)
-			}
+				if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+					log.Fatal(unmarshalErr)
+				}
+				processResponse(responseObj)
+				if verbose {
+					fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+					fmt.Printf("%v", responseObj)
+				}
 			*/
 		}
 	}
