@@ -14,7 +14,11 @@ class MainApp extends React.Component {
                 lat: null,
                 lng: null
             },
-            feed: null
+            currentData: [],
+            boundingBox: {
+                upperLeft: [],
+                bottomRight: []
+            }
         };
     }
 
@@ -25,22 +29,45 @@ class MainApp extends React.Component {
         this.setState({ curLatLng });
     }
 
-    updateViewFeed(feed) {
-        this.setState({ feed });
+    updateCurrentDataPoints(currentData) {
+        this.setState({ currentData });
     }
+
+    updateBoundingBox(upperLeft, bottomRight) {
+        this.setState({
+            boundingBox:
+            {
+                upperLeft: upperLeft,
+                bottomRight: bottomRight
+            }
+        });
+    }
+
 
     render() {
 
-        console.log('CURRENT LAT LNG: ', this.state.curLatLng);
         const curLatLng = [this.state.curLatLng.lat, this.state.curLatLng.lng];
         return (
             <Row>
                 <Col md={3}>
-                    <Sidebar curLatLng={curLatLng} mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)}
-                        updateModeFunc={this.updateModeFunc.bind(this)} feed={this.state.feed} />
+                    <Sidebar
+                        curLatLng={curLatLng}
+                        mode={this.state.mode}
+                        updateLatLngFunc={this.updateLatLngFunc.bind(this)}
+                        updateModeFunc={this.updateModeFunc.bind(this)}
+                        updateCurrentDataPoints={this.updateCurrentDataPoints.bind(this)}
+                        feed={this.state.currentData}
+                        upperLeft={this.state.boundingBox.upperLeft}
+                        bottomRight={this.state.boundingBox.bottomRight}
+                    />
                 </Col>
                 <Col md={9}>
-                    <MapView mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)} updateFeedFunc={this.updateViewFeed.bind(this)}/>
+                    <MapView
+                        mode={this.state.mode}
+                        updateLatLngFunc={this.updateLatLngFunc.bind(this)}
+                        updateCurrentDataPoints={this.updateCurrentDataPoints.bind(this)}
+                        updateBoundingBox={this.updateBoundingBox.bind(this)}
+                        markers={this.state.currentData} />
                 </Col>
             </Row>
         );

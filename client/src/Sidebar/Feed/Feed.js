@@ -12,7 +12,7 @@ export default class Feed extends React.Component {
     //     super(props)
     // }
     render() {
-        console.log(this.props.elements);
+        // console.log(this.props.elements);
         return (
             <div>
                 {this.props.elements ? this.props.elements.map(x => (<FeedItem key={x.storyid} story={x} />)) : <EmptyFeed />}
