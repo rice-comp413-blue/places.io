@@ -472,7 +472,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 	leftStr := string(runes[0:i])
 	buff = bytes.NewBufferString(leftStr)
 	// Concatenate new id param and request body remainder
-	buff.WriteString(",\n  \"id\": " + id.String())
+	buff.WriteString(",\"id\":" + id.String())
 	buff.WriteString(string(runes[i:len(runes)]))
 	setupTimer(id)
 
