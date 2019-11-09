@@ -21,7 +21,7 @@ s3_auth = {
 module.exports = { db_auth, s3_auth }
 ```
 
-[You can also find the file here](https://drive.google.com/a/rice.edu/file/d/1YY_oujDWLwfGjYLIV3dbwNTcfcFBmh5j/view?usp=sharing)
+[You can also find the file here](https://docs.google.com/document/d/1JMi_18lyJugSQxyImxYDPRzjonAr0td1UlTsBe5oFFQ/edit?usp=sharing)
 
 ## Managing AWS Instances
 [View and manage the AWS instances as part of the IAM group here.](https://docs.google.com/document/d/1yo2fyUCdL-AbamVPM4vPVfxVNaxXsR2Ssl3-_2pPiZE/edit?usp=sharing)
@@ -43,17 +43,17 @@ docker build -t server .
 ```
 docker run -p 3000:3000 -d server
 ```
-The server should now be up on *http://localhost:3000*
 
-## Use
-As of now we support the following test requests: 
+### Running without Docker
+
 ```
-curl -i --request GET http://localhost:3000/
+npm run server
 ```
-```
-curl -i --request GET http://localhost:3000/test
-```
-```
-curl -i--request POST http://localhost:3000/test
-```
+
+Either way the server should now be up on *http://localhost:3000*
+
+
+## Uses
+You can view currently supported requests [here](https://documenter.getpostman.com/view/9044732/SW131dZ7?version=latest#deb8a431-b60d-452e-b00c-e81d8fdfea40)
+
 

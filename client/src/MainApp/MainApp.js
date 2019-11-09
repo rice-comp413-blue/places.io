@@ -13,7 +13,8 @@ class MainApp extends React.Component {
             curLatLng: {
                 lat: null,
                 lng: null
-            }
+            },
+            feed: null
         };
     }
 
@@ -24,6 +25,10 @@ class MainApp extends React.Component {
         this.setState({ curLatLng });
     }
 
+    updateViewFeed(feed) {
+        this.setState({ feed });
+    }
+
     render() {
 
         console.log('CURRENT LAT LNG: ', this.state.curLatLng);
@@ -32,10 +37,10 @@ class MainApp extends React.Component {
             <Row>
                 <Col md={3}>
                     <Sidebar curLatLng={curLatLng} mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)}
-                        updateModeFunc={this.updateModeFunc.bind(this)} />
+                        updateModeFunc={this.updateModeFunc.bind(this)} feed={this.state.feed} />
                 </Col>
                 <Col md={9}>
-                    <MapView mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)} />
+                    <MapView mode={this.state.mode} updateLatLngFunc={this.updateLatLngFunc.bind(this)} updateFeedFunc={this.updateViewFeed.bind(this)}/>
                 </Col>
             </Row>
         );

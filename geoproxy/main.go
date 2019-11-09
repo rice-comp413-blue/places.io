@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+        "flag"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	"io/ioutil"
 	"log"
 	"math"
@@ -23,7 +25,7 @@ import (
 	"time"
 )
 
-var verbose = true
+var verbose = false
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -62,6 +64,17 @@ type viewRequestPayloadStruct struct {
 // "coordinate": [-20.3, 60]
 type submitRequestPayloadStruct struct {
 	LatLng []float64 `json:"coordinate"`
+}
+
+type requestHandler struct {
+}
+
+
+type healthResponse struct {
+  Image_url string
+  Storyid string
+  Text string
+
 }
 
 // 2D map of LatCoordRange:LngCoordRange:ServerURL
@@ -176,7 +189,8 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	if err != nil {
 		panic(err)
 	}
-
+	fmt.Println("Printing view payload")
+        fmt.Printf("%+v\n",requestPayload)
 	return requestPayload
 }
 
@@ -308,131 +322,6 @@ func isJSON(s string) bool {
 	return json.Unmarshal([]byte(s), &js) == nil
 }
 
-// Serve a reverse proxy for a given url
-// TODO include uuid as an argument
-func serveReverseProxy2(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
-	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	if id == uuid.Nil {
-		// Then we just have a submit request.
-		// We only have to send it to a single server.
-		// Just process it normally
-		if verbose {
-			fmt.Println("Making submit request")
-		}
-		url, _ := url.Parse(target[0])
-		proxy := httputil.NewSingleHostReverseProxy(url)
-		req.URL.Host = url.Host
-		req.URL.Scheme = url.Scheme
-		req.Host = url.Host
-		proxy.ServeHTTP(res, req)
-		return
-	}
-
-	// Read body to buffer
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		return
-	}
-	buff := bytes.NewBuffer(body)
-	// Edit request body to include id
-	bodyStr := buff.String()
-	// This is where we want to insert the id param
-	i := strings.LastIndex(bodyStr, "\n}")
-	// Convert to runes to split
-	runes := []rune(bodyStr)
-	// Left side string of \n}
-	leftStr := string(runes[0:i])
-	buff = bytes.NewBufferString(leftStr)
-	// Concatenate new id param and request body remainder
-	buff.WriteString(",\n  \"id\": " + id.String())
-	buff.WriteString(string(runes[i:len(runes)]))
-	setupTimer(id)
-	// Send to other servers for view request
-	for i := 0; i < len(target); i++ {
-		if verbose {
-			fmt.Println("making view request")
-		}
-		// parse the url
-		url, _ := url.Parse(target[i])
-		newReqBody := ioutil.NopCloser(buff)
-
-		// reusing requests is unreliable, so copy to new request
-		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
-		if err != nil {
-			log.Printf("Error creating new request: %v", err)
-			continue
-		}
-		// Update the headers to allow for SSL redirection
-		newReq.URL.Host = url.Host
-		newReq.URL.Scheme = url.Scheme
-		newReq.Host = url.Host
-		newReq.Header.Set("content-type", "application/json; charset=UTF-8")
-		fmt.Printf("cont-type: %s \n", newReq.Header.Get("content-type"))
-		for header, values := range req.Header {
-			for _, value := range values {
-				newReq.Header.Add(header, value)
-			}
-		}
-		res, err := http.DefaultClient.Do(newReq)
-		if err != nil {
-			log.Printf("Error when sending request", err)
-		} else {
-			fmt.Println(res.Body)
-			defer res.Body.Close()
-			// Todo: do we close the response appropriately?
-			// when do we want to process it?
-			// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
-			var responseObj ResponseObj
-			/*
-				buf := new(bytes.Buffer)
-				buf.ReadFrom(res.Body)
-				fmt.Println(isJSON(buf.String()))
-				// https://stackoverflow.com/questions/22128282/how-to-check-string-is-in-json-format
-			*/
-			for k, v := range res.Header {
-				fmt.Print(k)
-				fmt.Print(" : ")
-				fmt.Println(v)
-			}
-			///*
-			continue
-			dec := json.NewDecoder(res.Body)
-			decErr := dec.Decode(&responseObj)
-
-			if decErr != nil {
-				log.Fatal(decErr)
-			}
-			if verbose {
-				fmt.Printf("%v", responseObj)
-			}
-			//*/
-			/*
-				body, bodyErr := ioutil.ReadAll(res.Body)
-				if bodyErr != nil {
-					log.Println("Body error")
-					log.Fatal(bodyErr)
-				}
-				///*
-					if verbose {
-						fmt.Println("Response body follows")
-						fmt.Println(body)
-					}
-
-				if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
-					log.Println("Unmarshal error")
-					log.Fatal(unmarshalErr)
-				}
-				//*/
-			processResponse(responseObj)
-			if verbose {
-				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
-				fmt.Printf("%v", responseObj)
-			}
-		}
-	}
-}
-
 func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	if id == uuid.Nil {
@@ -460,18 +349,16 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		fmt.Println("Making view request")
 	}
 	// Read body to buffer
-	/*
+	
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
 		return
 	}
-	*/
-
+	
 	fmt.Printf("req url: %s \n", html.EscapeString(req.URL.Path))
 
-	//buff := bytes.NewBuffer(body)
-	testReq, _ := json.Marshal(map[string]interface{}{
+	/*testReq, _ := json.Marshal(map[string]interface{}{
 		"latlng1": [2]int{-69,-2},
 		"latlng2": [2]int{-73,1},
 		"skip": 10,
@@ -479,8 +366,10 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		"id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",
 	})
 	buff := bytes.NewBuffer(testReq)
+	*/
 	// Edit request body to include id
-	/*
+	
+	buff := bytes.NewBuffer(body)
 	bodyStr := buff.String()
 	// This is where we want to insert the id param	
 	i := strings.LastIndex(bodyStr, "}")
@@ -492,7 +381,6 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 	// Concatenate new id param and request body remainder
 	buff.WriteString(",\"id\":" + "\"" + id.String() + "\"")
 	buff.WriteString(string(runes[i:len(runes)]))
-	*/
 	buffBytes := buff.Bytes()	
 	
 	setupTimer(id)
@@ -538,7 +426,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 				newReq.Header.Add(header, value)
 			}
 		}*/
-		res, err := http.Post(url.String(),"application/json",newReqBody)
+		res, err := http.Post(url.String(), "application/json", newReqBody)
 		//res, err := http.DefaultClient.Do(newReq)
 		if err != nil {
 			log.Printf("Error when sending request", err)
@@ -617,7 +505,7 @@ func setupTimer(id uuid.UUID) {
 }
 
 // Given a request send it to the appropriate url
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
 		fmt.Printf("Preflight request received\n")
@@ -670,7 +558,6 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 		url := getSubmitProxyUrl(requestPayload.LatLng)
 		fmt.Printf("Conditional url attained\n")
 		logSubmitRequestPayload(requestPayload, url)
-
 		if url == ERROR_URL {
 			fmt.Printf("Error: Could not send request due to incorrect request body\n")
 			return
@@ -685,28 +572,56 @@ func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+
+func checkMatches(resp *http.Response) bool {
+	var p []byte
+
+	if resp.ContentLength < 0 {
+        fmt.Println("No Data returned")
+        return (false)
+    }
+    p = make([]byte, resp.ContentLength)
+    resp.Body.Read(p)
+    healthJson := string(p)
+    var healthResp []healthResponse	
+	json.Unmarshal([]byte(healthJson), &healthResp)
+    if (healthResp[0].Image_url == "https://comp413-places.s3.amazonaws.com/1572467590447health.jpg"){
+    	//fmt.Println("Response OK")
+    	return(true)
+    }
+
+	return (false)
+}
 // This function is called on a timer and pings both
 // servers with a GET request. A 302 response is expected
 // but not yet explicity checked
 func checkHealth(ticker *time.Ticker, done chan bool) {
-	//Reference for ticker code:
-	for {
-		select {
-		//Is there any case we want this ticker to stop? Leaving for now in case
-		// we want to modify this
-		case <-done:
-			return
-		//case t := <-ticker.C:
-		case <-ticker.C:
-			client := &http.Client{
-				//Reference here for redirect code: https://jonathanmh.com/tracing-preventing-http-redirects-golang/
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
-				}}
-			// fmt.Println("HEALTH CHECK")
+	//Reference for ticker code: 
+    for {
+        select {
+        //Is there any case we want this ticker to stop? Leaving for now in case
+       	// we want to modify this
+        case <-done:
+            return
+        //case t := <-ticker.C:
+        case  <-ticker.C:
+        	client := &http.Client{
+        		//Reference here for redirect code: https://jonathanmh.com/tracing-preventing-http-redirects-golang/ 
+			    CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			      return http.ErrUseLastResponse
+			  } }
+			//fmt.Println("HEALTH CHECK")
 
-			if pingA {
-				_, err := client.Get(os.Getenv("A_CONDITION_URL"))
+			if (pingA) {
+				resp, err := client.Get(os.Getenv("A_CONDITION_URL") + "/health")
+				
+				valid := checkMatches(resp)
+
+				if (valid != true) {
+					fmt.Println("Error in response JSON")
+					modifyMap(0)
+					pingA = false
+				}
 
 				//What should we do if we run into an error? Right now just printing it
 				if err != nil {
@@ -717,9 +632,15 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 
 			}
 
-			if pingB {
-				_, err2 := client.Get(os.Getenv("B_CONDITION_URL"))
+			if (pingB) {
+				resp, err2 := client.Get(os.Getenv("B_CONDITION_URL")+ "/health")
+				valid := checkMatches(resp)
 
+				if (valid != true) {
+					fmt.Println("Error in response JSON")
+					modifyMap(1)
+					pingB = false
+				}
 				if err2 != nil {
 					fmt.Println(err2)
 					modifyMap(1)
@@ -732,8 +653,8 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 }
 
 func processResponse(response ResponseObj) {
-	b := []byte(response.ID)
-	var id, err = uuid.FromBytes(b)
+	//b := []byte(response.ID)
+	var id, err = uuid.Parse(response.ID)
 	if err != nil {
 		panic(err)
 	} else {
@@ -822,16 +743,25 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-
-	fmt.Printf("Map set up\n")
+	flag.BoolVar(&verbose,"v", false, "a bool")
+	flag.Parse()
+	if verbose {
+		fmt.Println("Verbose mode")
+		fmt.Printf("Map set up\n")
+	}
+	rh := &requestHandler{}
 	// start server
-	http.HandleFunc("/", handleRequestAndRedirect)
+	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header. 
+	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
+	gzHandleFunc := gziphandler.GzipHandler(rh)
+	http.Handle("/", gzHandleFunc)
 
 	//Initialize ticker + channel + run in parallel
+	/*
 	ticker := time.NewTicker(5000 * time.Millisecond)
 	done := make(chan bool)
 	go checkHealth(ticker, done)
-
+	*/
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
 	}

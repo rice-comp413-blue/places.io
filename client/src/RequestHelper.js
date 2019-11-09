@@ -1,15 +1,66 @@
 import axios from 'axios';
+// import FormData from 'form-data';
 const RequestHelper = {
     queryViewBoundingBox: (upperLeft, bottomRight) => {
-        return axios.post('', JSON.stringify({ latlng1: upperLeft, latlng2: bottomRight }));
+        //  hardcoe URLS for now, will switch to use a config later
+        return axios.post('http://localhost:1330/view',
+            { latlng1: upperLeft, latlng2: bottomRight },
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
     },
-    submitPlace: (text, coordinate) => {
-        // {
-        //     "text": "helloworld6",
-        //     "coordinate": [-20, -20],
-        //     "timestamp": "2019-10-05T11:22:52.000Z"
+    submitPlace: (text, coordinate, file) => {
+        const form = new FormData();
+        form.append('text', text);
+        form.append('lat', coordinate[0]);
+        form.append('lng', coordinate[1]);
+        form.append('timestamp', new Date());
+
+        if (file === null) {
+            form.append('file', null);
+        }
+        else {      //  file exists
+            form.append('file', file);
+        }
+        return axios.post('', form, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+
+
+        // TODO: update to multipart form data
+        // if (file === null) {
+        //     return axios.post('http://localhost:1330/submit',
+        //         {
+        //             text,
+        //             coordinate,
+        //             timestamp: new Date()
+        //         },
+        //         {
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             }
+        //         });
+        // } else {
+        //     return axios.post('http://localhost:1330/submit',
+        //         {
+        //             text,
+        //             coordinate,
+        //             image: file,
+        //             timestamp: new Date()
+        //         },
+        //         {
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             }
+        //         });
         // }
-        return axios.post('', JSON.stringify({ text, coordinate, timestamp: new Date() }));
+
     }
 }
 export default RequestHelper;

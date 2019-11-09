@@ -20,14 +20,27 @@ These are good tools to get familiar with, even outside the scope of this class.
 
 Use `apt install git-crypt` on linux or `brew install git-crypt` on mac.
 
-Create an account on keybase and generate a PGP key.
+### Usage
 
+Use `git crypt lock` before committing and `git crypt unlock` after pulling to update the secrets files. 
+
+# AWS
+
+Use `npm run aws:setup -- <platform>` to setup AWS utilities. Valid platforms include `linux` and `macos`. 
+
+## ECS
+
+Use `npm run aws:newkey -- <region>` to create an RSA key pair.
+
+Use `npm run aws:ecs:config -- <cluster_name> <region>` to configure an ECS cluster.
+
+Use `npm run aws:ecs:create -- <cluster_name> <key_region>` to create the configured ECS cluster.
+
+Use `npm run aws:ecs:deploy -- <cluster_name>` to deploy the docker compose definition in the current directory to the ECS cluster.
+
+Use `npm run aws:ecs:view -- <cluster_name` to view running containers on the ECS cluster.
 Import the keybase key to your local gpg keychain (see this [article](https://www.keybits.net/post/import-keybase-private-key/)).
 
 Give someone on the infrastructure team your keybase username (not email) and they will add your public key to git crypt.
 
 If you are having trouble with any of these tools, reach out in the [#infrastructure](https://blueteam-comp413.slack.com/messages/CNN0P23B6) channel.
-
-### Usage
-
-Use `git crypt lock` before committing and `git crypt unlock` after pulling to update the secrets files. 
