@@ -56,7 +56,6 @@ type ResponseObj struct {
 type viewRequestPayloadStruct struct {
 	LatLng1 []float64 `json:"latlng1"`
 	LatLng2 []float64 `json:"latlng2"`
-	ID string `json:"ID"`
 }
 
 // Submit request passes the coord to post
@@ -448,141 +447,136 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		req.URL.Host = url.Host
 		req.URL.Scheme = url.Scheme
 		req.Host = url.Host
+		for header, values := range req.Header {
+		       for _, value := range values {
+		                  fmt.Printf("head: %s, val: %s \n", header, value)
+		 }
+																				                }
 		proxy.ServeHTTP(res, req)
 		return
 	}
 
-		if verbose {
-			fmt.Println("Making view request")
-		}
+	if verbose {
+		fmt.Println("Making view request")
+	}
 	// Read body to buffer
+	/*
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
 		return
 	}
-	buff := bytes.NewBuffer(body)
+	*/
+
+	fmt.Printf("req url: %s \n", html.EscapeString(req.URL.Path))
+
+	//buff := bytes.NewBuffer(body)
+	testReq, _ := json.Marshal(map[string]interface{}{
+		"latlng1": [2]int{-69,-2},
+		"latlng2": [2]int{-73,1},
+		"skip": 10,
+		"pagelimit": 5,
+		"id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",
+	})
+	buff := bytes.NewBuffer(testReq)
 	// Edit request body to include id
+	/*
 	bodyStr := buff.String()
 	// This is where we want to insert the id param	
-
-	/*i := strings.LastIndex(bodyStr, "\n}")
+	i := strings.LastIndex(bodyStr, "}")
 	// Convert to runes to split
 	runes := []rune(bodyStr)
-	log.Printf("1 \n")
 	// Left side string of \n}
 	leftStr := string(runes[0:i])
-	log.Printf("1 \n")
 	buff = bytes.NewBufferString(leftStr)
 	// Concatenate new id param and request body remainder
-	buff.WriteString(",\n  \"id\": " + id.String())
+	buff.WriteString(",\"id\":" + "\"" + id.String() + "\"")
 	buff.WriteString(string(runes[i:len(runes)]))
-	log.Printf("2 \n")
-	log.Printf("3 \n")
 	*/
-	var vr viewRequestPayloadStruct 
-	unmarshalErr := json.Unmarshal([]byte(bodyStr), &vr)
-	if unmarshalErr != nil {
-		fmt.Println("Badly formatted request")
-	}
-	fmt.Println(vr.ID)
-	requestID, err := uuid.FromBytes([]byte(vr.ID))
+	buffBytes := buff.Bytes()	
 	
-	/*if err!= nil {
-		fmt.Println("Invalid uuid passed in")
-	}*/
-	
-	setupTimer(requestID)
+	setupTimer(id)
+	//fmt.Println(buff.String())
 
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		// parse the url
 		url, _ := url.Parse(target[i])
-		newReqBody := ioutil.NopCloser(buff)
+		url.Path = "/view"
+		fmt.Printf("url: %s \n", target[i])
+		newReqBody := ioutil.NopCloser(bytes.NewBuffer(buffBytes))
 		//fmt.Println(newReqBody)
 		// reusing requests is unreliable, so copy to new request
-		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
+		/*
 		reqbuf := new(bytes.Buffer)
-		reqbuf.ReadFrom(req.Body) 
+		reqbuf.ReadFrom(newReq.Body) 
 		reqStr:=reqbuf.String()
 		fmt.Println("reqStr")
-		fmt.Println(reqStr)
+		fmt.Println(reqStr)*/
+		//bodyBytes, _ := ioutil.ReadAll(newReqBody)
+		fmt.Printf("body %s \n",string(buffBytes))
+		//fmt.Printf("body %s \n",string(bodyBytes))
+		//continue 
 
+		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
+		//newReq.Body = newReqBody
 		if err != nil {
 			log.Printf("Error creating new request: %v", err)
 			continue
 		}
 		// Update the headers to allow for SSL redirection
+		newReq.URL = url
+		fmt.Println(url.String())
+		/*
 		newReq.URL.Host = url.Host
 		newReq.URL.Scheme = url.Scheme
 		newReq.Host = url.Host
-
-		for header, values := range req.Header {
+		*/
+		/*for header, values := range req.Header {
 			for _, value := range values {
 				fmt.Printf("head: %s, val: %s \n", header, value)
 				newReq.Header.Add(header, value)
 			}
-		}
-		res, err := http.DefaultClient.Do(newReq)
+		}*/
+		res, err := http.Post(url.String(),"application/json",newReqBody)
+		//res, err := http.DefaultClient.Do(newReq)
 		if err != nil {
 			log.Printf("Error when sending request", err)
 		} else {
 			defer res.Body.Close()
-			//var responseObj ResponseObj
+			var responseObj ResponseObj
+			/*
+			fmt.Println("HTTP Response Status:", res.StatusCode, http.StatusText(res.StatusCode))
 			//fmt.Println(res.Body)
 			buf := new(bytes.Buffer)
 			buf.ReadFrom(res.Body)
 			newStr:=buf.String()
 			fmt.Println(newStr)
-			/*
-			if bodyErr != nil {
-				fmt.Println("body error")
-			}*/
-
+			
 			for k, v := range res.Header {
 				fmt.Print(k)
 				fmt.Print(" : ")
 				fmt.Println(v)
 			}
+			
 			if err != nil {
 				log.Fatal(err)
 			}
-			htmlTokens := html.NewTokenizer(bytes.NewReader(buf.Bytes()))
-		loop:
-			for {
-				tt := htmlTokens.Next()
-				t := htmlTokens.Token()
-				//fmt.Printf("%T", tt)
-				switch tt {
-				case html.ErrorToken:
-					fmt.Println("End")
-					break loop
-				case html.TextToken:
-					fmt.Println(tt)
-					fmt.Printf("Data: %s \n", t.Data)
-				case html.StartTagToken:
-					t := htmlTokens.Token()
-					isAnchor := t.Data == "a"
-					if isAnchor {
-						fmt.Println("We found an anchor!")
-					}
-				}
-			}
-			/*
-			body, bodyErr := ioutil.ReadAll(res.Body)
-			if bodyErr != nil {
-				log.Fatal(bodyErr)
-			}
-
-			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
-				log.Fatal(unmarshalErr)
-			}
-			processResponse(responseObj)
-			if verbose {
-				fmt.Printf("Request served to reverse proxy for %s\n", target[i])
-				fmt.Printf("%v", responseObj)
-			}
 			*/
+				body, bodyErr := ioutil.ReadAll(res.Body)
+				fmt.Printf("resbody: %s", body)
+				if bodyErr != nil {
+					log.Fatal(bodyErr)
+				}
+
+				if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+					log.Fatal(unmarshalErr)
+				}
+				processResponse(responseObj)
+				if verbose {
+					fmt.Printf("Request served to reverse proxy for %s\n", target[i])
+					fmt.Printf("%v", responseObj)
+				}
 		}
 	}
 }
