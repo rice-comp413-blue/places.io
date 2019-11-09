@@ -7,7 +7,8 @@ const validationMiddleware = require('./middleware/validation.request.property')
 const upload = require('./models/s3')
 
 const app = express();
-const port = 3000;
+//const port = 3000;
+const port = 1332;
 
 app.use(cors());
 
@@ -29,7 +30,11 @@ app.post('/test', db.postTest);
 // actual routes TBD
 app.post('/submit', upload.single('file'), story.createStory);
 
-app.post('/view', story.getStoriesInBox);
+app.post('/view',(req, res, next) => {
+	console.log("View request received");
+	console.log(req);
+	next();
+}, story.getStoriesInBox);
 
 // test middleware
 app.post('/test-middleware', validationMiddleware.validSubmitRequestProperties, story.createStory);
