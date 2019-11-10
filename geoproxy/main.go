@@ -480,6 +480,9 @@ func setupTimer(id uuid.UUID) {
 	// How long we should wait for multiple
 	timeWait := 4 * time.Second
 	time.AfterFunc(timeWait, func() {
+		if verbose {
+			fmt.Printf("Timeout triggered for %s", id.String())
+		}
 		if mutex, ok := requestMutexMap[id]; ok {
 			mutex.Lock()
 			var readyToServe = false
@@ -492,6 +495,9 @@ func setupTimer(id uuid.UUID) {
 			}
 			mutex.Unlock()
 			if readyToServe {
+				if verbose {
+					fmt.Println("serving response after cleanup")
+				}
 				serveResponseThenCleanup(id)
 			}
 		}
@@ -700,19 +706,20 @@ func serveResponseThenCleanup(id uuid.UUID) {
 	// We don't want both responses triggering us to serve the response.
 	// This shouldn't be a problem if all responses arrive in a timely manner though
 	defer requestMutex.Unlock()
-	/*
+	
 	var responseEntries = getResponse(id)
 	// First marshal the response
 	var data, _ = json.Marshal(responseEntries)
-	*/
+	
 	if verbose {
 		fmt.Println(data)
 	}
+	/*
 	data, _ := json.Marshal(map[string]interface{}{                                   "latlng1": [2]int{-69,-2},                                                     "latlng2": [2]int{-73,1},                                                      "skip": 10,
 		                "pagelimit": 5,
 				                "id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",
 						        })
-
+	*/
 	data_b := []byte(data)
 	fmt.Printf("data: %s \n", string(data))
 	// Get the response writer
@@ -738,11 +745,6 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		log.Println(writeErr)
 	}
 
-	/*
-		if verbose { // maybe write otu
-			fmt.Printf()
-		}
-	*/
 	// Clean up
 	multiServerMapCleanup(id)
 	}
