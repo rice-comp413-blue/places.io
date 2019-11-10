@@ -387,36 +387,14 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 			log.Printf("url: %s \n", target[i])
 		}
 		newReqBody := ioutil.NopCloser(bytes.NewBuffer(buffBytes))
-		//fmt.Println(newReqBody)
 		// reusing requests is unreliable, so copy to new request
-		/*
-		reqbuf := new(bytes.Buffer)
-		reqbuf.ReadFrom(newReq.Body) 
-		reqStr:=reqbuf.String()
-		fmt.Println("reqStr")
-		fmt.Println(reqStr)*/
-		//bodyBytes, _ := ioutil.ReadAll(newReqBody)
-		//fmt.Printf("body %s \n",string(bodyBytes))
-		//continue 
 
-		/*
-		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
-		//newReq.Body = newReqBody
-		if err != nil {
-			log.Printf("Error creating new request: %v", err)
-			continue
-		}
-		// Update the headers to allow for SSL redirection
-		newReq.URL = url
-		newReq.URL.Host = url.Host
-		newReq.URL.Scheme = url.Scheme
-		newReq.Host = url.Host
-		*/
 		/*
 		res, err := http.DefaultClient.Do(newReq)
 		*/
 		res, err := http.Post(url.String(), "application/json", newReqBody)
-		// Question: is it alright if we make the request like this? Or do we have to copy over the headers and stuff like before?
+		// Todo: Question: is it alright if we make the request like this? Or do we have to copy over the headers and stuff like before?
+		// Also is Post preferable? or is there not much of a difference?
 		if err != nil {
 			log.Printf("Error when sending request", err)
 		} else {
