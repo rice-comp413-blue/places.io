@@ -19,7 +19,7 @@
     "mocha": "^6.2.2"
   },
   "scripts": {
-    "test": "mocha --timeout 10000",
+    "test": "mocha --timeout 10000 --exit",
     "server": "node server.js"
   },
   "keywords": [],
