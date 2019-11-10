@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	uuid "github.com/google/uuid"
-	//"github.com/NYTimes/gziphandler"
+	"github.com/NYTimes/gziphandler"
 	//"github.com/pkg/errors"
 	"golang.org/x/net/html"
 	"io/ioutil"
@@ -280,8 +280,6 @@ func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 	// Parse each coord
 	topLeft := parseCoord(rawCoord1)
 	bottomRight := parseCoord(rawCoord2)
-	//fmt.Printf("%v",topLeft)
-	//fmt.Printf("%v",bottomRight)
 
 	for latRange := range data {
 		//fmt.Printf("%v",latRange)
@@ -360,17 +358,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 	
 	log.Printf("req url: %s \n", html.EscapeString(req.URL.Path))
 
-	/*testReq, _ := json.Marshal(map[string]interface{}{
-		"latlng1": [2]int{-69,-2},
-		"latlng2": [2]int{-73,1},
-		"skip": 10,
-		"pagelimit": 5,
-		"id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",
-	})
-	buff := bytes.NewBuffer(testReq)
-	*/
 	// Edit request body to include id
-	
 	buff := bytes.NewBuffer(body)
 	bodyStr := buff.String()
 	// This is where we want to insert the id param	
@@ -508,8 +496,8 @@ func setupTimer(id uuid.UUID) {
 }
 
 // Given a request send it to the appropriate url
-//func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
-func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
+func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
+//func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
 		fmt.Printf("Preflight request received\n")
@@ -614,7 +602,6 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 			    CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			      return http.ErrUseLastResponse
 			  } }
-			//fmt.Println("HEALTH CHECK")
 
 			if (pingA) {
 				resp, err := client.Get(os.Getenv("A_CONDITION_URL") + "/health")
@@ -672,7 +659,6 @@ func processResponse(response ResponseObj) {
 			var pl = queryMap[id]
 			for _, responseEntry := range responseEntries {
 				pl.PushToCapacity(entriesToServe, &responseEntry)
-				// TODO: COME BACK HERE AND MAKE SURE IT'S ALRIGHT
 			}
 			if responsesMap[id] == 0 {
 				if verbose {
@@ -714,12 +700,6 @@ func serveResponseThenCleanup(id uuid.UUID) {
 	if verbose {
 		fmt.Println(data)
 	}
-	/*
-	data, _ := json.Marshal(map[string]interface{}{                                   "latlng1": [2]int{-69,-2},                                                     "latlng2": [2]int{-73,1},                                                      "skip": 10,
-		                "pagelimit": 5,
-				                "id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",
-						        })
-	*/
 	data_b := []byte(data)
 	fmt.Printf("data: %s \n", string(data))
 	// Get the response writer
@@ -764,24 +744,6 @@ func multiServerMapCleanup(id uuid.UUID) {
 	mapMutex.Unlock()
 }
 
-func testFixedResponse(res http.ResponseWriter, req *http.Request) {
-        
-	data, _ := json.Marshal(map[string]interface{}{                                   "latlng1": [2]int{-69,-2},                                                     "latlng2": [2]int{-73,1},                                                      "skip": 10,
-	   "pagelimit": 5,
-	   "id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",                                   })
-	return
-	   data_b := []byte(data)
-	   res.Header().Set("Content-Type", "application/json")
-	res.Header().Set("Content-Length", string(1000))
-           i, writeErr := res.Write(data_b)
-	           if verbose {
-			                   log.Printf("Wrote: %d \n", i)
-	}
-	if writeErr != nil {                                                                  
-		log.Println("Got err writing to response writer")                              
-		log.Println(writeErr)                                                  }
-		}
-
 func main() {
 	// Log setup values
 	logSetup()
@@ -792,22 +754,22 @@ func main() {
 		fmt.Println("Verbose mode")
 		fmt.Printf("Map set up\n")
 	}
-	/*
+	
 	rh := &requestHandler{}
 	// start server
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header. 
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
 	http.Handle("/", gzHandleFunc)
-	*/
-	http.HandleFunc("/", handleRequestAndRedirect)
+	
+	//http.HandleFunc("/", handleRequestAndRedirect)
 	//http.HandleFunc("/", testFixedResponse)
 	//Initialize ticker + channel + run in parallel
-	/*
+	
 	ticker := time.NewTicker(5000 * time.Millisecond)
 	done := make(chan bool)
 	go checkHealth(ticker, done)
-	*/
+	
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
 	}
