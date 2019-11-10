@@ -3,24 +3,24 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-        "flag"
+	"encoding/binary"
+	"flag"
 	"fmt"
-	"github.com/NYTimes/gziphandler"
+	uuid "github.com/google/uuid"
+	//"github.com/NYTimes/gziphandler"
+	//"github.com/pkg/errors"
+	"golang.org/x/net/html"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"net/http/httputil"
-
-	"golang.org/x/net/html"
-
-	uuid "github.com/google/uuid"
-
 	// "net/http/httptest"
 	"net/url"
 	"os"
-	"reflect"
+	//"reflect"
 	"strings"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -329,24 +329,26 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		// We only have to send it to a single server.
 		// Just process it normally
 		if verbose {
-			fmt.Println("Making submit request")
+			log.Println("Making submit request")
 		}
 		url, _ := url.Parse(target[0])
 		proxy := httputil.NewSingleHostReverseProxy(url)
 		req.URL.Host = url.Host
 		req.URL.Scheme = url.Scheme
 		req.Host = url.Host
-		for header, values := range req.Header {
-		       for _, value := range values {
-		                  fmt.Printf("head: %s, val: %s \n", header, value)
-		 }
-																				                }
+		if verbose {
+			for header, values := range req.Header {
+		       		for _, value := range values {
+					log.Printf("head: %s, val: %s \n", header, value)
+			}
+			}
+	}
 		proxy.ServeHTTP(res, req)
 		return
 	}
 
 	if verbose {
-		fmt.Println("Making view request")
+		log.Println("Making view request")
 	}
 	// Read body to buffer
 	
@@ -356,7 +358,7 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		return
 	}
 	
-	fmt.Printf("req url: %s \n", html.EscapeString(req.URL.Path))
+	log.Printf("req url: %s \n", html.EscapeString(req.URL.Path))
 
 	/*testReq, _ := json.Marshal(map[string]interface{}{
 		"latlng1": [2]int{-69,-2},
@@ -385,13 +387,17 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 	
 	setupTimer(id)
 	//fmt.Println(buff.String())
-
+	if verbose {
+		log.Printf("body %s \n",string(buffBytes))
+	}
 	// Send to other servers for view request
 	for i := 0; i < len(target); i++ {
 		// parse the url
 		url, _ := url.Parse(target[i])
 		url.Path = "/view"
-		fmt.Printf("url: %s \n", target[i])
+		if verbose {
+			log.Printf("url: %s \n", target[i])
+		}
 		newReqBody := ioutil.NopCloser(bytes.NewBuffer(buffBytes))
 		//fmt.Println(newReqBody)
 		// reusing requests is unreliable, so copy to new request
@@ -402,10 +408,10 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		fmt.Println("reqStr")
 		fmt.Println(reqStr)*/
 		//bodyBytes, _ := ioutil.ReadAll(newReqBody)
-		fmt.Printf("body %s \n",string(buffBytes))
 		//fmt.Printf("body %s \n",string(bodyBytes))
 		//continue 
 
+		/*
 		newReq, err := http.NewRequest(req.Method, target[i], newReqBody)
 		//newReq.Body = newReqBody
 		if err != nil {
@@ -414,20 +420,15 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 		}
 		// Update the headers to allow for SSL redirection
 		newReq.URL = url
-		fmt.Println(url.String())
-		/*
 		newReq.URL.Host = url.Host
 		newReq.URL.Scheme = url.Scheme
 		newReq.Host = url.Host
 		*/
-		/*for header, values := range req.Header {
-			for _, value := range values {
-				fmt.Printf("head: %s, val: %s \n", header, value)
-				newReq.Header.Add(header, value)
-			}
-		}*/
+		/*
+		res, err := http.DefaultClient.Do(newReq)
+		*/
 		res, err := http.Post(url.String(), "application/json", newReqBody)
-		//res, err := http.DefaultClient.Do(newReq)
+		// Question: is it alright if we make the request like this? Or do we have to copy over the headers and stuff like before?
 		if err != nil {
 			log.Printf("Error when sending request", err)
 		} else {
@@ -440,31 +441,27 @@ func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Reque
 			buf.ReadFrom(res.Body)
 			newStr:=buf.String()
 			fmt.Println(newStr)
-			
-			for k, v := range res.Header {
-				fmt.Print(k)
-				fmt.Print(" : ")
-				fmt.Println(v)
-			}
-			
-			if err != nil {
-				log.Fatal(err)
+		
+			if verbose {
+				for k, v := range res.Header {
+					log.Printf("head: %s, val: %s \n", k, v)
+				}
 			}
 			*/
-				body, bodyErr := ioutil.ReadAll(res.Body)
-				fmt.Printf("resbody: %s", body)
-				if bodyErr != nil {
-					log.Fatal(bodyErr)
-				}
+			body, bodyErr := ioutil.ReadAll(res.Body)
+			if bodyErr != nil {
+				// Do we want to stop the program here 
+				log.Fatal(bodyErr)
+			}
 
-				if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
-					log.Fatal(unmarshalErr)
-				}
-				processResponse(responseObj)
-				if verbose {
-					fmt.Printf("Request served to reverse proxy for %s\n", target[i])
-					fmt.Printf("%v", responseObj)
-				}
+			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
+				log.Fatal(unmarshalErr)
+			}
+			processResponse(responseObj)
+			if verbose {
+				log.Printf("Request served to reverse proxy for %s\n", target[i])
+				log.Printf("Response obj: %v", responseObj)
+			}
 		}
 	}
 }
@@ -505,7 +502,8 @@ func setupTimer(id uuid.UUID) {
 }
 
 // Given a request send it to the appropriate url
-func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
+//func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
+func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
 		fmt.Printf("Preflight request received\n")
@@ -531,12 +529,12 @@ func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request)
 		urlArray := make([]string, 0, len(urls))
 		for url := range urls {
 			if verbose {
-				fmt.Printf("URL serving to: %s", url)
+				fmt.Printf("URL serving to: %s \n", url)
 			}
 			// todo: make sure that this is returning the actual url and not index
 			logViewRequestPayload(requestPayload, url)
 			if url == ERROR_URL {
-				fmt.Printf("Error: Could not send request due to incorrect request body\n")
+				fmt.Println("Error: Could not send request due to incorrect request body")
 				return
 			}
 			responseCount = responseCount + 1
@@ -553,13 +551,13 @@ func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request)
 		serveReverseProxy(urlArray, res, req, tag)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
-		fmt.Printf("Submit request received\n")
+		log.Println("Submit request received")
 		requestPayload := parseSubmitRequestBody(req)
 		url := getSubmitProxyUrl(requestPayload.LatLng)
-		fmt.Printf("Conditional url attained\n")
+		log.Println("Conditional url attained")
 		logSubmitRequestPayload(requestPayload, url)
 		if url == ERROR_URL {
-			fmt.Printf("Error: Could not send request due to incorrect request body\n")
+			log.Printf("Error: Could not send request due to incorrect request body\n")
 			return
 		}
 
@@ -568,7 +566,7 @@ func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request)
 
 		serveReverseProxy(urlArray, res, req, uuid.Nil)
 	} else {
-		fmt.Printf("Unrecognized request received\n")
+		log.Printf("Unrecognized request received\n")
 	}
 }
 
@@ -671,54 +669,75 @@ func processResponse(response ResponseObj) {
 				// TODO: COME BACK HERE AND MAKE SURE IT'S ALRIGHT
 			}
 			if responsesMap[id] == 0 {
+				if verbose {
+					log.Println("Got back all responses in time")
+				}
 				readyToServe = true
 			}
 			mutex.Unlock()
 			if readyToServe {
+				if verbose {
+					log.Printf("About to serve request for id: %s\n", id)
+				}
 				serveResponseThenCleanup(id)
 			}
 		} else {
 			if verbose {
-				fmt.Printf("Response for tag %s came after cleanup", id)
+				log.Printf("Response for tag %s came after cleanup", id)
 			}
 		}
 	}
 }
 
 func getResponse(id uuid.UUID) PostList {
-	// I wrote below code for if we choose to use heap implementation
-	// var requestMutex = requestMutexMap[id]
-	// var i = 0
-	// var size = pq.Size()
-	// for size != 0 {
-	// 	size = pq.Size()
-	// 	var post = heap.Pop(&pq).(*Post)
-	// 	// todo: see whether we should return the actual struct or just the pointer
-	// 	posts[i] = post
-	// 	i++
-	// }
-	// requestMutex.Unlock()
 	return queryMap[id]
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
-	var requestMutex = requestMutexMap[id]
+	if requestMutex,ok := requestMutexMap[id]; ok {
+	fmt.Println("found mutex")
 	requestMutex.Lock() // We lock here in case we have two or more responses arrive after timeout
 	// We don't want both responses triggering us to serve the response.
 	// This shouldn't be a problem if all responses arrive in a timely manner though
 	defer requestMutex.Unlock()
-
+	/*
 	var responseEntries = getResponse(id)
 	// First marshal the response
 	var data, _ = json.Marshal(responseEntries)
+	*/
 	if verbose {
-		fmt.Println(reflect.TypeOf(data))
 		fmt.Println(data)
 	}
+	data, _ := json.Marshal(map[string]interface{}{                                   "latlng1": [2]int{-69,-2},                                                     "latlng2": [2]int{-73,1},                                                      "skip": 10,
+		                "pagelimit": 5,
+				                "id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",
+						        })
+
 	data_b := []byte(data)
+	fmt.Printf("data: %s \n", string(data))
 	// Get the response writer
+	//return 
 	var resWriter = responseWriterMap[id]
-	resWriter.Write(data_b)
+	// Set the appropriate things on the response writer
+	resWriter.Header().Set("Content-Type", "application/json")
+	//resWriter.Header().Set("Content-Length", string(1000))
+	resWriter.Header().Set("Content-Length", strconv.Itoa(len(data_b)))
+	resWriter.WriteHeader(http.StatusOK)
+	// todo: check which status code we want
+	if verbose {
+		fmt.Printf("Num bytes: %d \n", binary.Size(data_b))
+	}
+
+	// serve the request to the client
+	i, writeErr := resWriter.Write(data_b)
+	if verbose {
+		log.Printf("Wrote: %d \n", i)
+	}
+	if writeErr != nil {
+		log.Println("Got err writing to response writer")
+		log.Println(writeErr)
+	}
+
 	/*
 		if verbose { // maybe write otu
 			fmt.Printf()
@@ -726,7 +745,7 @@ func serveResponseThenCleanup(id uuid.UUID) {
 	*/
 	// Clean up
 	multiServerMapCleanup(id)
-	// serve the request to the client
+	}
 }
 
 func multiServerMapCleanup(id uuid.UUID) {
@@ -736,8 +755,30 @@ func multiServerMapCleanup(id uuid.UUID) {
 	delete(responsesMap, id)
 	delete(queryMap, id)
 	delete(responseWriterMap, id)
+	if verbose {
+		log.Printf("Cleaned up maps for id: %s", id.String())
+		//log.Println("New map", queryMap)
+	}
 	mapMutex.Unlock()
 }
+
+func testFixedResponse(res http.ResponseWriter, req *http.Request) {
+        
+	data, _ := json.Marshal(map[string]interface{}{                                   "latlng1": [2]int{-69,-2},                                                     "latlng2": [2]int{-73,1},                                                      "skip": 10,
+	   "pagelimit": 5,
+	   "id": "2730436e-ccc8-460b-8b84-37cc665ca3b6",                                   })
+	return
+	   data_b := []byte(data)
+	   res.Header().Set("Content-Type", "application/json")
+	res.Header().Set("Content-Length", string(1000))
+           i, writeErr := res.Write(data_b)
+	           if verbose {
+			                   log.Printf("Wrote: %d \n", i)
+	}
+	if writeErr != nil {                                                                  
+		log.Println("Got err writing to response writer")                              
+		log.Println(writeErr)                                                  }
+		}
 
 func main() {
 	// Log setup values
@@ -749,13 +790,16 @@ func main() {
 		fmt.Println("Verbose mode")
 		fmt.Printf("Map set up\n")
 	}
+	/*
 	rh := &requestHandler{}
 	// start server
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header. 
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
 	http.Handle("/", gzHandleFunc)
-
+	*/
+	http.HandleFunc("/", handleRequestAndRedirect)
+	//http.HandleFunc("/", testFixedResponse)
 	//Initialize ticker + channel + run in parallel
 	/*
 	ticker := time.NewTicker(5000 * time.Millisecond)
