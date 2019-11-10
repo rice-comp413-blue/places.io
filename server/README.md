@@ -52,4 +52,4 @@ node server
 The server should now be up on *http://localhost:3000*
 
 ## Use
-You should download Postman and take a look at the collection we have. Click [here](https://documenter.getpostman.com/view/9044732/SW131dZ7?version=latest) to get the collection once you've downloaded postman.
+You can view all supported requests [here](https://documenter.getpostman.com/view/9044732/SW131dZ7?version=latest)
