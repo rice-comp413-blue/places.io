@@ -43,7 +43,13 @@ docker build -t server .
 ```
 docker run -p 3000:3000 -d server
 ```
+
+### Running Server Without Docker
+```
+node server
+```
+
 The server should now be up on *http://localhost:3000*
 
 ## Use
-You should download Postman and take a look at the collection we have. Click here[https://www.getpostman.com/collections/64db97db18b909e36951] to get the collection once you've downloaded postman.
+You should download Postman and take a look at the collection we have. Click [here](https://documenter.getpostman.com/view/9044732/SW131dZ7?version=latest) to get the collection once you've downloaded postman.
