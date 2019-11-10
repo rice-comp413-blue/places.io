@@ -10,32 +10,21 @@ const app = express();
 const port = 3000;
 
 app.use(cors());
-
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use(
-  bodyParser.urlencoded({
-    extended: true,
-  })
-);
-
-app.get('/', (request, response) => {
-  response.json({ info: 'Node.js, Express, and Postgres API' })
-});
-
-app.get('/test', db.getTest);
-
-app.post('/test', db.postTest);
-
-app.get('/health', story.healthStory); // health check
-
-// app.post('/submit', validationMiddleware.validSubmitRequestProperties, upload.single('file'), story.createStory);
-app.post('/submit', upload.single('file'), story.createStory); // create story
+app.get('/', (request, response) => { response.json({ info: 'places.io server' }) });
 
 app.post('/view', validationMiddleware.validViewRequestProperties, story.getStoriesInBox); // view stories
+
+app.post('/submit', upload.single('file'), validationMiddleware.validSubmitRequestProperties, story.createStory);
+
+app.get('/health', story.healthStory); // health check
 
 app.get('/count', story.getTotalStoryCount); // count stories
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
 });
+
+module.exports = app;

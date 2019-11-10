@@ -2,7 +2,6 @@ const pool = require('../connection/db');
 // latlng1 (required) [lat, lng]
 // latlng2 (required) [lat, lng]
 
-
 class Box {
     // Box object constructor
     constructor(box) {

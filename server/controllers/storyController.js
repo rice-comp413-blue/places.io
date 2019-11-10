@@ -23,15 +23,12 @@ const getTotalStoryCount = (req, res) => {
             res.status(200).json({"count": count});
         }
     })
-}
+};
 
 const createStory = (req, res) => {
     let newStory = new storyModel(req.body);
 
-    // TODO: is this necessary? need to investigate how a failed s3 upload works
-    if (req.file) {
-        newStory.updateImageUrl(req.file.location);
-    }
+    if (req.file) { newStory.updateImageUrl(req.file.location); }
 
     storyModel.createStory(newStory, function (err, record) {
         if (err) {
