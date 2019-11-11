@@ -4,8 +4,8 @@ import { Map, TileLayer, Marker, Popup } from 'react-leaflet';
 // import RequestHelper from '../RequestHelper';
 import Control from 'react-leaflet-control';
 import Button from 'react-bootstrap/Button';
-import MockEndpoints from '../MockEndpoints/MockEndpoints';
-
+// import MockEndpoints from '../RequestController/MockEndpoints';
+import RequestController from '../RequestController/RequestController';
 const PAGE_LIMIT = 10;
 class MapView extends React.Component {
     constructor(props) {
@@ -29,18 +29,10 @@ class MapView extends React.Component {
         const northEastBounds = this.map.leafletElement.getBounds().getNorthEast().wrap();
         const upperLeft = [northEastBounds.lat, southWestBounds.lng].map(x => Number(x));
         const bottomRight = [southWestBounds.lat, northEastBounds.lng].map(x => Number(x));
-        //  query view
-        // RequestHelper.queryViewBoundingBox(upperLeft, bottomRight)
-        //     .then(res => {
-        //         this.setState({ markers: res.data });
-        //         //  TODO: update shared state so that Sidebar can display results
-        //         //  TODO: update markers for display on map
-        //     })
-        //     .catch(err => console.log(err));
 
-        MockEndpoints.view(upperLeft, bottomRight, 0, PAGE_LIMIT)
+        RequestController.view(upperLeft, bottomRight, 0, PAGE_LIMIT)
             .then(res => {
-                this.props.updateCurrentDataPoints(res);
+                this.props.updateCurrentDataPoints(res.entries);
                 this.props.updateBoundingBox(upperLeft, bottomRight);
             })
             .catch(err => console.log(err));

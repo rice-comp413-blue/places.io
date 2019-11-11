@@ -6,9 +6,7 @@ import CardHeader from '@material-ui/core/CardHeader';
 import CardMedia from '@material-ui/core/CardMedia';
 import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
-import Avatar from '@material-ui/core/Avatar';
 import Typography from '@material-ui/core/Typography';
-import { red } from '@material-ui/core/colors';
 
 const useStyles = makeStyles(() => ({
   card: {
@@ -17,7 +15,7 @@ const useStyles = makeStyles(() => ({
     borderWidth: '0.5px',
     boxShadow: '3px 3px 5px grey',
     borderColor: 'grey',
-    margin: '1.5em'
+    margin: '1em'
   },
   media: {
     height: 0,

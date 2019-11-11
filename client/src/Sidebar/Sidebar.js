@@ -3,7 +3,7 @@ import Feed from './Feed/Feed';
 import Form from './Feed/Form';
 import { SegmentedControl } from 'segmented-control';
 import ReactPaginate from 'react-paginate';
-import MockEndpoints from '../MockEndpoints/MockEndpoints';
+import RequestController from '../RequestController/RequestController';
 const PAGE_LIMIT = 10;
 
 class Sidebar extends React.Component {
@@ -28,15 +28,17 @@ class Sidebar extends React.Component {
             prevUpperLeft[1] !== upperLeft[1] ||
             prevBottomRight[0] !== bottomRight[0] ||
             prevBottomRight[1] !== bottomRight[1]) {
-            MockEndpoints.getPageCount(upperLeft, bottomRight, 0, PAGE_LIMIT)
-                .then(pageCount => this.setState({ pageCount }))
+
+            RequestController.getCount(upperLeft, bottomRight)
+                .then(res => this.setState({ pageCount: res.count / PAGE_LIMIT }))
                 .catch(err => console.log(err));
         }
     }
 
     handlePageClick = (data) => {
-        MockEndpoints.view(this.props.upperLeft, this.props.bottomRight, data.selected, PAGE_LIMIT)
-            .then(res => this.props.updateCurrentDataPoints(res))
+
+        RequestController.view(this.props.upperLeft, this.props.bottomRight, data.selected, PAGE_LIMIT)
+            .then(res => this.props.updateCurrentDataPoints(res.entries))
             .catch(err => console.log(err));
 
     }
@@ -83,14 +85,12 @@ class Sidebar extends React.Component {
                             activeClassName={'active'}
                             breakClassName={'page-item'}
                             breakLinkClassName={'page-link'}
-                            containerClassName={'pagination'}
                             pageClassName={'page-item'}
                             pageLinkClassName={'page-link'}
                             previousClassName={'page-item'}
                             previousLinkClassName={'page-link'}
                             nextClassName={'page-item'}
                             nextLinkClassName={'page-link'}
-                            activeClassName={'active'}
                         />
                     </div> :
                     null}
