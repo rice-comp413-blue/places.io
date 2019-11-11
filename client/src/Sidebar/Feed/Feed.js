@@ -10,7 +10,7 @@ const EmptyFeed = (props) => {
 export default class Feed extends React.Component {
     render() {
         return (
-            <div>
+            <div className={this.props.className}>
                 {this.props.elements ?
                     this.props.elements.map(x => <FeedItem key={x.storyid} story={x} />) :
                     <EmptyFeed />

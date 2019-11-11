@@ -11,8 +11,8 @@ class MainApp extends React.Component {
         this.state = {
             mode: 'view',
             curLatLng: {
-                lat: null,
-                lng: null
+                lat: 0,
+                lng: 0
             },
             currentData: [],
             boundingBox: {

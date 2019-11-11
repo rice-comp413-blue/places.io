@@ -56,31 +56,45 @@ class Sidebar extends React.Component {
                     style={{
                         width: '100%',
                         height: '3em',
-                        fontSize: '0.8em',
+                        fontSize: '0.9em',
                         textAlign: 'center',
                         color: '#2980b9'
                     }} // purple400
                 />
                 {this.props.mode === 'view' ?
-                    <Feed elements={this.props.feed} /> :
+                    <Feed className="feed" elements={this.props.feed} /> :
                     <Form
                         updateLatLngFunc={this.props.updateLatLngFunc.bind(this)}
                         curLatLng={this.props.curLatLng}></Form>
                 }
+
                 {this.props.mode === 'view' && this.state.pageCount && this.props.feed.length > 0 ?
-                    <ReactPaginate
-                        previousLabel={'previous'}
-                        nextLabel={'next'}
-                        breakLabel={'...'}
-                        breakClassName={'break-me'}
-                        pageCount={this.state.pageCount}
-                        marginPagesDisplayed={2}
-                        pageRangeDisplayed={5}
-                        onPageChange={this.handlePageClick.bind(this)}
-                        containerClassName={'pagination'}
-                        subContainerClassName={'pages pagination'}
-                        activeClassName={'active'}
-                    /> : null}
+                    <div className="paginate-container">
+                        <ReactPaginate
+                            previousLabel={'previous'}
+                            nextLabel={'next'}
+                            breakLabel={'...'}
+                            pageCount={this.state.pageCount}
+                            marginPagesDisplayed={1}
+                            pageRangeDisplayed={2}
+                            onPageChange={this.handlePageClick.bind(this)}
+                            containerClassName={'pagination'}
+                            subContainerClassName={'pages pagination'}
+                            activeClassName={'active'}
+                            breakClassName={'page-item'}
+                            breakLinkClassName={'page-link'}
+                            containerClassName={'pagination'}
+                            pageClassName={'page-item'}
+                            pageLinkClassName={'page-link'}
+                            previousClassName={'page-item'}
+                            previousLinkClassName={'page-link'}
+                            nextClassName={'page-item'}
+                            nextLinkClassName={'page-link'}
+                            activeClassName={'active'}
+                        />
+                    </div> :
+                    null}
+
             </div>
         )
     }
