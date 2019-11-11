@@ -3,6 +3,6 @@ const URLS = {
     submit: '.../submit',
     view: '.../view',
     count: '.../count',
-    type: 'real'        //  'real' to use actual enpoints
+    type: 'mock'        //  'real' to use actual enpoints
 }
 export default URLS;

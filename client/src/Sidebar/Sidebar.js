@@ -78,7 +78,7 @@ class Sidebar extends React.Component {
                             breakLabel={'...'}
                             pageCount={this.state.pageCount}
                             marginPagesDisplayed={1}
-                            pageRangeDisplayed={2}
+                            pageRangeDisplayed={1}
                             onPageChange={this.handlePageClick.bind(this)}
                             containerClassName={'pagination'}
                             subContainerClassName={'pages pagination'}

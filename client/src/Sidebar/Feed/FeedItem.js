@@ -15,7 +15,7 @@ const useStyles = makeStyles(() => ({
     borderWidth: '0.5px',
     boxShadow: '3px 3px 5px grey',
     borderColor: 'grey',
-    margin: '1em'
+    marginBottom: '1em'
   },
   media: {
     height: 0,
