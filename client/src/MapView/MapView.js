@@ -5,13 +5,14 @@ import { Map, TileLayer, Marker, Popup } from 'react-leaflet';
 import Control from 'react-leaflet-control';
 import Button from 'react-bootstrap/Button';
 import MockEndpoints from '../MockEndpoints/MockEndpoints';
+
+const PAGE_LIMIT = 10;
 class MapView extends React.Component {
     constructor(props) {
         super(props);
         this.map = undefined;
         this.state = {
-            currentZoom: 10,
-            markers: []
+            currentZoom: 10
         };
     }
     componentDidMount() {
@@ -28,7 +29,6 @@ class MapView extends React.Component {
         const northEastBounds = this.map.leafletElement.getBounds().getNorthEast().wrap();
         const upperLeft = [northEastBounds.lat, southWestBounds.lng].map(x => Number(x));
         const bottomRight = [southWestBounds.lat, northEastBounds.lng].map(x => Number(x));
-
         //  query view
         // RequestHelper.queryViewBoundingBox(upperLeft, bottomRight)
         //     .then(res => {
@@ -38,13 +38,10 @@ class MapView extends React.Component {
         //     })
         //     .catch(err => console.log(err));
 
-        MockEndpoints.view(upperLeft, bottomRight)
+        MockEndpoints.view(upperLeft, bottomRight, 0, PAGE_LIMIT)
             .then(res => {
-                console.log(res)
-                this.setState({ markers: res });
-                this.props.updateFeedFunc(res)
-                //  TODO: update shared state so that Sidebar can display results
-                //  TODO: update markers for display on map
+                this.props.updateCurrentDataPoints(res);
+                this.props.updateBoundingBox(upperLeft, bottomRight);
             })
             .catch(err => console.log(err));
     }
@@ -57,7 +54,7 @@ class MapView extends React.Component {
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {this.state.markers.map(marker => {
+                {this.props.markers.map(marker => {
                     return (
                         <Marker
                             key={marker.storyid}

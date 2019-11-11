@@ -44,7 +44,7 @@ export default class CustomForm extends React.Component {
     render() {
         return (
             <div>
-                <div>Selected point: {this.props.curLatLng[0]} {this.props.curLatLng[1]}</div>
+                <div >Selected point: ({this.props.curLatLng[0].toFixed(4)} {this.props.curLatLng[1].toFixed(4)})</div>
 
                 <Form>
                     <Form.Group >

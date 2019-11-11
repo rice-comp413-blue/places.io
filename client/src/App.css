@@ -29,5 +29,17 @@
 
 .sidebar {
   height: 90vh;
+  margin-left: 1em;
+}
+
+.paginate-container {
+  cursor: pointer;
+  font-size: 0.9em;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.feed {
+  height: 90%;
   overflow-y: auto;
 }

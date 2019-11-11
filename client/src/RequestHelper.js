@@ -1,5 +1,7 @@
 import axios from 'axios';
 // import FormData from 'form-data';
+
+
 const RequestHelper = {
     queryViewBoundingBox: (upperLeft, bottomRight) => {
         //  hardcoe URLS for now, will switch to use a config later
