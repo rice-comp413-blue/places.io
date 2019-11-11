@@ -1,8 +1,8 @@
 const URLS = {
     //  URLS go here
-    submit: '.../submit',
-    view: '.../view',
-    count: '.../count',
+    submit: 'http://localhost:2000/submit',
+    view: 'http://localhost:2000/view',
+    count: 'http://localhost:2000/count',
     type: 'mock'        //  'real' to use actual enpoints
 }
 export default URLS;

@@ -32,7 +32,7 @@ class MapView extends React.Component {
 
         RequestController.view(upperLeft, bottomRight, 0, PAGE_LIMIT)
             .then(res => {
-                this.props.updateCurrentDataPoints(res.entries);
+                this.props.updateCurrentDataPoints(res.data.entries);
                 this.props.updateBoundingBox(upperLeft, bottomRight);
             })
             .catch(err => console.log(err));

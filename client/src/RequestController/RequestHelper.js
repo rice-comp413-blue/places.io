@@ -37,7 +37,7 @@ const RequestHelper = {
         form.append('text', text);
         form.append('lat', coordinate[0]);
         form.append('lng', coordinate[1]);
-        form.append('timestamp', new Date());
+        form.append('timestamp', new Date().toGMTString());
 
         if (file === null) {
             form.append('file', null);
