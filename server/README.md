@@ -3,7 +3,7 @@
 ## Setup
 Follow the steps below to run the server component. 
 ### Add Connection file
-Create a file named *connection.js* and place it in places.io/server with the following structure and fill in all the fields. This is used to connect to the DB.
+Create a file named *connection.js* and place it in places.io/server/connection with the following structure and fill in all the fields. This is used to connect to the DB.
 ```
 db_auth = {   
     user: '<user>',
@@ -44,16 +44,12 @@ docker build -t server .
 docker run -p 3000:3000 -d server
 ```
 
-### Running without Docker
-
+### Running Server Without Docker
 ```
-npm run server
+node server
 ```
 
-Either way the server should now be up on *http://localhost:3000*
+The server should now be up on *http://localhost:3000*
 
-
-## Uses
-You can view currently supported requests [here](https://documenter.getpostman.com/view/9044732/SW131dZ7?version=latest#deb8a431-b60d-452e-b00c-e81d8fdfea40)
-
-
+## Use
+You can view all supported requests [here](https://documenter.getpostman.com/view/9044732/SW131dZ7?version=latest)
