@@ -44,7 +44,6 @@ class Sidebar extends React.Component {
     updateMode = (newMode) => this.props.updateModeFunc(newMode)
 
     render = () => {
-        console.log(this.state.pageCount)
         return (
             <div className="sidebar">
                 <SegmentedControl
@@ -54,7 +53,13 @@ class Sidebar extends React.Component {
                         { label: "Submit", value: "submit" },
                     ]}
                     setValue={newMode => this.updateMode(newMode)}
-                    style={{ width: '100%', color: '#2980b9' }} // purple400
+                    style={{
+                        width: '100%',
+                        height: '3em',
+                        fontSize: '0.8em',
+                        textAlign: 'center',
+                        color: '#2980b9'
+                    }} // purple400
                 />
                 {this.props.mode === 'view' ?
                     <Feed elements={this.props.feed} /> :

@@ -30,4 +30,5 @@
 .sidebar {
   height: 90vh;
   overflow-y: auto;
+  margin-left: 1em;
 }
