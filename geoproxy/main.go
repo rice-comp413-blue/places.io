@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-        "flag"
+	"flag"
 	"fmt"
-	"github.com/NYTimes/gziphandler"
 	"io/ioutil"
+	"github.com/NYTimes/gziphandler"
 	"log"
 	"math"
 	"net/http"
@@ -15,6 +15,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"strconv"
 )
 
 var verbose = false
@@ -68,7 +69,6 @@ var cr1 = CoordRange{-90, 0}
 var cr2 = CoordRange{0, 90}
 var cr3 = CoordRange{-180, 180}
 
-
 //Boolean to check if servers are up
 //If we have more than 2 conditional urls we probably want to make this
 //some sort of map, but this should be fine for now
@@ -105,7 +105,7 @@ func logSetup() {
 func setupMap() {
 	// Map will map lat-long ranges to env strings
 	// latitude: (-90, 90) longitude: (-180, 180)
-	
+
 	data[cr1] = map[CoordRange]string{}
 	data[cr2] = map[CoordRange]string{}
 	data[cr1][cr3] = "A_CONDITION_URL"
@@ -115,7 +115,7 @@ func setupMap() {
 func modifyMap(conditional int) {
 	if conditional == 0 {
 		data[cr1][cr3] = "B_CONDITION_URL"
-	} else if (conditional == 1) {
+	} else if conditional == 1 {
 		data[cr2][cr3] = "A_CONDITION_URL"
 	}
 
@@ -148,20 +148,30 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 		panic(err)
 	}
 	fmt.Println("Printing view payload")
-        fmt.Printf("%+v\n",requestPayload)
+	fmt.Printf("%+v\n", requestPayload)
 	return requestPayload
 }
 
 // Parse the submit requests body
 func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
-	decoder := requestBodyDecoder(request)
-
-	var requestPayload submitRequestPayloadStruct
-	err := decoder.Decode(&requestPayload)
-
+	request.ParseMultipartForm(0)
+	var LatLng []float64
+	lat := request.FormValue("lat")
+	lng := request.FormValue("lng")
+	var err error
+	LatLng[0], err = strconv.ParseFloat(lat, 64)
 	if err != nil {
 		panic(err)
 	}
+
+	LatLng[1], err = strconv.ParseFloat(lng, 64)
+	if err != nil {
+		panic(err)
+	}
+
+
+	var requestPayload submitRequestPayloadStruct
+	requestPayload.LatLng = LatLng
 
 	return requestPayload
 }
@@ -308,7 +318,7 @@ func enableCors(w *http.ResponseWriter) {
 }
 
 // Given a request send it to the appropriate url
-func (rh *requestHandler)  ServeHTTP(res http.ResponseWriter, req *http.Request) {
+func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
 		fmt.Printf("Preflight request received\n")
@@ -435,9 +445,8 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 				}
 			}
 
-			
-        }
-    }
+		}
+	}
 
 }
 
@@ -445,7 +454,7 @@ func main() {
 	// Log setup values
 	logSetup()
 	setupMap()
-	flag.BoolVar(&verbose,"v", false, "a bool")
+	flag.BoolVar(&verbose, "v", false, "a bool")
 	flag.Parse()
 	if verbose {
 		fmt.Println("Verbose mode")
@@ -454,15 +463,15 @@ func main() {
 	rh := &requestHandler{}
 	// start server
 
-	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header. 
+	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
 	http.Handle("/", gzHandleFunc)
 
 	//Initialize ticker + channel + run in parallel
 	ticker := time.NewTicker(5000 * time.Millisecond)
-    done := make(chan bool)
-    go checkHealth(ticker, done)
+	done := make(chan bool)
+	go checkHealth(ticker, done)
 
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
