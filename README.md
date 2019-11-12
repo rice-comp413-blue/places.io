@@ -28,6 +28,29 @@ Use `git crypt lock` before committing and `git crypt unlock` after pulling to u
 
 Use `npm run aws:setup -- <platform>` to setup AWS utilities. Valid platforms include `linux` and `macos`. 
 
+## ECR
+### Registry Authentication
+Run `aws ecr get-login --region <region> --no-include-email`. We are using region `us-east-2`.
+
+The output should look like `docker login -u AWS -p **password** https://**aws_account_id**.dkr.ecr.us-east-2.amazonaws.com`. Copy and paste this docker login command into
+your terminal to authenticate your Docker CLI to the registry. This provides an auth token that is
+valid for the specified registry for 12 hours.
+
+### Pushing your image
+Build the image with `docker build -t <image_name> <path_to_dockerfile>`. For example,
+`docker build -t server .`
+
+Run `docker images` to see built images. Get the IMAGE ID of the image you just build
+(should look something like `b28feb2019c2`).
+
+Tag the server (or proxy) image with the repository uri:
+`docker tag <image_id> 865745777952.dkr.ecr.us-east-2.amazonaws.com/<repo name>`
+If you are pushing the server image, the repo name is `server`; the repo name for the proxy
+is `proxy`.
+
+Push the image to ECR:
+`docker push 865745777952.dkr.ecr.us-east-2.amazonaws.com/<repo name>`
+
 ## ECS
 
 Use `npm run aws:newkey -- <region>` to create an RSA key pair.
