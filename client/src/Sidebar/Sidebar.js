@@ -37,7 +37,7 @@ class Sidebar extends React.Component {
 
     handlePageClick = (data) => {
 
-        RequestController.view(this.props.upperLeft, this.props.bottomRight, data.selected * PAGE_LIMIT, PAGE_LIMIT)
+        RequestController.view(this.props.upperLeft, this.props.bottomRight, data.selected, PAGE_LIMIT)
             .then(res => { this.props.updateCurrentDataPoints(res.data.entries) })
             .catch(err => console.log(err));
 
