@@ -47,3 +47,12 @@ Finally run the proxy with:
 ```
 
 By default the geoproxy will listen to port 1330. You can change the default port in the .env file. 
+
+## Tests
+
+Tests are located in the main_test.go file.
+
+To run tests, do the following in the same directory as the test file:
+```
+go test -v
+```
