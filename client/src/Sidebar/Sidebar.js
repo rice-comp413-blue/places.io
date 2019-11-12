@@ -30,15 +30,15 @@ class Sidebar extends React.Component {
             prevBottomRight[1] !== bottomRight[1]) {
 
             RequestController.getCount(upperLeft, bottomRight)
-                .then(res => this.setState({ pageCount: res.count / PAGE_LIMIT }))
+                .then(res => { this.setState({ pageCount: Math.ceil(res.data.count / PAGE_LIMIT) }) })
                 .catch(err => console.log(err));
         }
     }
 
     handlePageClick = (data) => {
 
-        RequestController.view(this.props.upperLeft, this.props.bottomRight, data.selected, PAGE_LIMIT)
-            .then(res => this.props.updateCurrentDataPoints(res.entries))
+        RequestController.view(this.props.upperLeft, this.props.bottomRight, data.selected * PAGE_LIMIT, PAGE_LIMIT)
+            .then(res => { this.props.updateCurrentDataPoints(res.data.entries) })
             .catch(err => console.log(err));
 
     }

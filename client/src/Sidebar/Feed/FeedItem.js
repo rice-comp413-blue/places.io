@@ -42,6 +42,7 @@ const useStyles = makeStyles(() => ({
 
 export default function MediaCard(props) {
   const classes = useStyles();
+  // console.log(props.story)
 
   return (
     <Card className={classes.card}>
@@ -53,19 +54,19 @@ export default function MediaCard(props) {
         }
         subheader={
           <div className={classes.subHeader}>
-            {props.story.timestamp.toLocaleString('en-US')}
+            {new Date(props.story.timestamp).toLocaleString('en-US')}
           </div>}
       />
-      {props.story.imageURL !== '' ?
+      {props.story.image_url !== null ?
         <CardMedia
           className={classes.media}
-          image={props.story.imageURL}
+          image={props.story.image_url}
           title="Story Image"
         /> :
         null
       }
       <CardContent>
-        <Typography variant="body2" color="textSecondary" component="p">
+        <Typography variant="body2" color="textSecondary" component="div">
           <div className={classes.text}>{props.story.text}</div>
         </Typography>
       </CardContent>
