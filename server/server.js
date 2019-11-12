@@ -20,7 +20,7 @@ app.post('/submit', upload.single('file'), validationMiddleware.validSubmitReque
 
 app.get('/health', story.healthStory); // health check
 
-app.get('/count', story.getTotalStoryCount); // count stories
+app.post('/count', story.getTotalStoryCount); // count stories
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
