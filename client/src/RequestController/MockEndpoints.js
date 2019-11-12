@@ -32,7 +32,7 @@ const MockEndpoints = {
         return new Promise((resolve, reject) => {
             resolve({
                 data: {
-                    entries: results.slice(skip * pageLimit, Math.min(results.length, skip * pageLimit + pageLimit))
+                    entries: results.slice(skip, Math.min(results.length, skip + pageLimit))
                 }
             });
         });
