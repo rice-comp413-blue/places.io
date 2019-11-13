@@ -547,6 +547,11 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 func checkMatches(resp *http.Response) bool {
 	var p []byte
 
+	if resp == nil {
+		fmt.Println("No Response received. Server may not be set up.")
+		return (false)
+	}
+	
 	if resp.ContentLength < 0 {
 		fmt.Println("No Data returned")
 		return (false)
