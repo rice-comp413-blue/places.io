@@ -8,6 +8,9 @@ LABEL maintainer="Jacob Diaz <cjdiaz98@gmail.com>"
 ENV GOPATH /app
 WORKDIR /app
 
+# Install gzip dependency
+RUN go get -v github.com/NYTimes/gziphandler
+
 # Copy everything from the current directory to the Working Directory inside the container
 COPY . .
 
