@@ -8,22 +8,14 @@ import (
 	"fmt"
 	"github.com/NYTimes/gziphandler"
 	uuid "github.com/google/uuid"
-	//"github.com/pkg/errors"
 	"io/ioutil"
-	"github.com/NYTimes/gziphandler"
 	"log"
 	"math"
 	"net/http"
 	"net/http/httputil"
-
 	"golang.org/x/net/html"
-
-	// "net/http/httptest"
 	"net/url"
 	"os"
-
-	//"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
