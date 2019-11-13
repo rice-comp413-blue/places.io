@@ -1,6 +1,6 @@
 import React from 'react';
 import Form from 'react-bootstrap/Form';
-import RequestHelper from '../../RequestHelper';
+import RequestController from '../../RequestController/RequestController';
 import Button from 'react-bootstrap/Button';
 
 export default class CustomForm extends React.Component {
@@ -18,15 +18,13 @@ export default class CustomForm extends React.Component {
         });
     }
     handleSubmit(e) {
-
-
-        RequestHelper.submitPlace(this.state.description, this.props.curLatLng, this.state.file)
+        RequestController.submit(this.state.description, this.props.curLatLng, this.state.file)
             .then(res => console.log(res))
             .catch(err => console.log(err));
 
         this.setState({ description: '', file: null })
         // reset lat and lng
-        this.props.updateLatLngFunc({ lat: null, lng: null });
+        this.props.updateLatLngFunc({ lat: 0, lng: 0 });
         this.fileUpload.value = '';
     }
     updateDescription(e) {
@@ -44,7 +42,7 @@ export default class CustomForm extends React.Component {
     render() {
         return (
             <div>
-                <div>Selected point: {this.props.curLatLng[0]} {this.props.curLatLng[1]}</div>
+                <div >Selected point: ({this.props.curLatLng[0].toFixed(4)} {this.props.curLatLng[1].toFixed(4)})</div>
 
                 <Form>
                     <Form.Group >

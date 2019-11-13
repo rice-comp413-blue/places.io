@@ -6,12 +6,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-
 	"github.com/NYTimes/gziphandler"
 	uuid "github.com/google/uuid"
-
 	//"github.com/pkg/errors"
 	"io/ioutil"
+	"github.com/NYTimes/gziphandler"
 	"log"
 	"math"
 	"net/http"
@@ -28,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"strconv"
 )
 
 var verbose = false
@@ -209,14 +209,24 @@ func getPosts(body []byte) ([]Post, error) {
 
 // Parse the submit requests body
 func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
-	decoder := requestBodyDecoder(request)
-
-	var requestPayload submitRequestPayloadStruct
-	err := decoder.Decode(&requestPayload)
-
+	request.ParseMultipartForm(0)
+	var LatLng []float64
+	lat := request.FormValue("lat")
+	lng := request.FormValue("lng")
+	var err error
+	LatLng[0], err = strconv.ParseFloat(lat, 64)
 	if err != nil {
 		panic(err)
 	}
+
+	LatLng[1], err = strconv.ParseFloat(lng, 64)
+	if err != nil {
+		panic(err)
+	}
+
+
+	var requestPayload submitRequestPayloadStruct
+	requestPayload.LatLng = LatLng
 
 	return requestPayload
 }
@@ -476,7 +486,6 @@ func setupTimer(id uuid.UUID) {
 
 // Given a request send it to the appropriate url
 func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	//func handleRequestAndRedirect(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
 		fmt.Printf("Preflight request received\n")
@@ -736,6 +745,7 @@ func main() {
 
 	rh := &requestHandler{}
 	// start server
+
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
