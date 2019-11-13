@@ -1,4 +1,4 @@
-const auth = require('../connection').s3_auth;
+const auth = require('./connection').s3_auth;
 var multer  = require('multer');
 var multerS3 = require('multer-s3');
 const AWS = require('aws-sdk');

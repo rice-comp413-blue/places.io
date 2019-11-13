@@ -1,11 +1,11 @@
 {
   "family": "taskDefServer",
-  "executionRoleArn": "arn:aws:iam::936282279425:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::865745777952:role/ecsTaskExecutionRole",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
       "name": "server",
-      "image": "936282279425.dkr.ecr.us-east-2.amazonaws.com/server:latest",
+      "image": "865745777952.dkr.ecr.us-east-2.amazonaws.com/server:latest",
       "portMappings": [
         {
           "containerPort": 3000,
@@ -23,9 +23,7 @@
       ]
     }
   ],
-  "requiresCompatibilities": [
-    "FARGATE"
-  ],
+  "requiresCompatibilities": ["FARGATE"],
   "memory": "512",
   "cpu": "256"
 }
