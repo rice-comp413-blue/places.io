@@ -16,14 +16,20 @@ class MapView extends React.Component {
         };
     }
     componentDidMount() {
-
         this.map.leafletElement.on('zoomend', () => {
             this.setState({ currentZoom: this.map.leafletElement.getZoom() });
         });
     }
+
+    openMarker(storyId) {
+        //TODO: move map to the location of the story
+        //TODO: then open the popup at the given location
+    }
+
     handleClick(e) {
         this.props.updateLatLngFunc({ lat: e.latlng.wrap().lat, lng: e.latlng.wrap().lng });
     }
+
     handleViewClick() {
         const southWestBounds = this.map.leafletElement.getBounds().getSouthWest().wrap();
         const northEastBounds = this.map.leafletElement.getBounds().getNorthEast().wrap();
@@ -53,6 +59,8 @@ class MapView extends React.Component {
                             position={[marker.lat, marker.long]}>
                             <Popup>
                                 <h5>Description</h5><br /> {marker.text}
+                                {marker.image_url ? <img src={marker.image_url} style={{height:'100px'}}/> : <p>No image attached.</p>}
+                                <p>Story Id: {marker.storyid}</p>
                             </Popup>
                         </Marker>)
                 })}
