@@ -1,1 +1,2 @@
 secrets.json filter=git-crypt diff=git-crypt
+server/connection/connection.js filter=git-crypt diff=git-crypt
