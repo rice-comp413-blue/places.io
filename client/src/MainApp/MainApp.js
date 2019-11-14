@@ -74,7 +74,9 @@ class MainApp extends React.Component {
                         updateLatLngFunc={this.updateLatLngFunc.bind(this)}
                         updateCurrentDataPoints={this.updateCurrentDataPoints.bind(this)}
                         updateBoundingBox={this.updateBoundingBox.bind(this)}
-                        markers={this.state.currentData} />
+                        markers={this.state.currentData} 
+                        selectedStory={this.state.selectedStoryId}
+                        />
                 </Col>
             </Row>
         );

@@ -1,16 +1,19 @@
 import React from 'react';
 import '../App.css';
 import { Map, TileLayer, Marker, Popup } from 'react-leaflet';
+
 // import RequestHelper from '../RequestHelper';
 import Control from 'react-leaflet-control';
 import Button from 'react-bootstrap/Button';
 // import MockEndpoints from '../RequestController/MockEndpoints';
 import RequestController from '../RequestController/RequestController';
 const PAGE_LIMIT = 10;
+
 class MapView extends React.Component {
     constructor(props) {
         super(props);
         this.map = undefined;
+        this.layer = undefined;
         this.state = {
             currentZoom: 10
         };
@@ -19,13 +22,12 @@ class MapView extends React.Component {
         this.map.leafletElement.on('zoomend', () => {
             this.setState({ currentZoom: this.map.leafletElement.getZoom() });
         });
-    }
 
-    openMarker(storyId) {
-        //TODO: move map to the location of the story
-        //TODO: then open the popup at the given location
-    }
+        // generate markers
 
+
+    }
+    
     handleClick(e) {
         this.props.updateLatLngFunc({ lat: e.latlng.wrap().lat, lng: e.latlng.wrap().lng });
     }
@@ -43,27 +45,50 @@ class MapView extends React.Component {
             })
             .catch(err => console.log(err));
     }
-    render() {
 
+    mapCenter() {
+        const riceCampusCoordinate = [29.749907, -95.358421]
+        return riceCampusCoordinate
+    }
+
+    render() {
         return (
-            <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={[29.749907, -95.358421]} zoom={10}
+            <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={this.mapCenter(this)} zoom={10}
                 style={{ height: '90vh', width: '100%' }}>
-                <TileLayer
+                <TileLayer ref={(ref) => {this.layer = ref}}
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {this.props.markers.map(marker => {
+            
+                {this.props.markers.filter((b) => b.storyid !== this.props.selectedStory).map(marker => {
                     return (
                         <Marker
                             key={marker.storyid}
-                            position={[marker.lat, marker.long]}>
+                            position={[marker.lat, marker.long]}>   
                             <Popup>
                                 <h5>Description</h5><br /> {marker.text}
-                                {marker.image_url ? <img src={marker.image_url} style={{height:'100px'}}/> : <p>No image attached.</p>}
+                                {marker.image_url ? <img src={marker.image_url} style={{height:'100px'}}/> : <p className="missing">No image attached.</p>}
                                 <p>Story Id: {marker.storyid}</p>
                             </Popup>
-                        </Marker>)
+                        </Marker>
+                    )
+
                 })}
+                {this.props.markers.filter((b) => b.storyid === this.props.selectedStory).map(marker => {
+                    return (
+                        <ActiveMarker
+                            key={marker.storyid}
+                            position={[marker.lat, marker.long]}>   
+                            <Popup>
+                                <h5>Description</h5><br /> {marker.text}
+                                {marker.image_url ? <img src={marker.image_url} style={{height:'100px'}}/> : <p className="missing">No image attached.</p>}
+                                <p>Story Id: {marker.storyid}</p>
+                            </Popup>
+                        </ActiveMarker>
+                    )
+
+                })}
+                
                 {this.props.mode === 'view' && this.state.currentZoom > 6 ?
                     <Control position="topright" >
                         <Button onClick={this.handleViewClick.bind(this)}>
@@ -75,5 +100,13 @@ class MapView extends React.Component {
         );
     }
 }
+const ActiveMarker = props => {
+    const initMarker = ref => {
+      if (ref) {
+        ref.leafletElement.openPopup()
+      }
+    }
+    return <Marker ref={initMarker} {...props}/>
+ }
 
 export default MapView;
