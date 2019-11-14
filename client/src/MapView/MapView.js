@@ -22,12 +22,8 @@ class MapView extends React.Component {
         this.map.leafletElement.on('zoomend', () => {
             this.setState({ currentZoom: this.map.leafletElement.getZoom() });
         });
-
-        // generate markers
-
-
     }
-    
+
     handleClick(e) {
         this.props.updateLatLngFunc({ lat: e.latlng.wrap().lat, lng: e.latlng.wrap().lng });
     }
@@ -53,7 +49,7 @@ class MapView extends React.Component {
 
     render() {
         return (
-            <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={this.mapCenter(this)} zoom={10}
+            <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={this.mapCenter()} zoom={10}
                 style={{ height: '90vh', width: '100%' }}>
                 <TileLayer ref={(ref) => {this.layer = ref}}
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
@@ -64,7 +60,9 @@ class MapView extends React.Component {
                     return (
                         <Marker
                             key={marker.storyid}
-                            position={[marker.lat, marker.long]}>   
+                            position={[marker.lat, marker.long]}
+                            onClick={() => this.props.onStoryClick(marker.storyid)}
+                            >   
                             <Popup>
                                 <h5>Description</h5><br /> {marker.text}
                                 {marker.image_url ? <img src={marker.image_url} style={{height:'100px'}}/> : <p className="missing">No image attached.</p>}
@@ -74,6 +72,9 @@ class MapView extends React.Component {
                     )
 
                 })}
+                
+                {/*The active marker needs to be placed last in order for it to show. There should only be 1.*/}
+
                 {this.props.markers.filter((b) => b.storyid === this.props.selectedStory).map(marker => {
                     return (
                         <ActiveMarker

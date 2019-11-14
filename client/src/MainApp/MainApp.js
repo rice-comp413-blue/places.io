@@ -75,6 +75,7 @@ class MainApp extends React.Component {
                         updateCurrentDataPoints={this.updateCurrentDataPoints.bind(this)}
                         updateBoundingBox={this.updateBoundingBox.bind(this)}
                         markers={this.state.currentData} 
+                        onStoryClick={this.onStoryClick.bind(this)}
                         selectedStory={this.state.selectedStoryId}
                         />
                 </Col>
