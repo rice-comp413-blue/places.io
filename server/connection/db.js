@@ -1,5 +1,5 @@
 const { Pool } = require("pg");
-const s3config = require("s3config.json");
+const s3config = require("./s3config.json");
 const secrets = require("../../secrets.json");
 
 const pool = new Pool({
