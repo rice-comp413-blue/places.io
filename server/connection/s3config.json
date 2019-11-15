@@ -1,0 +1,5 @@
+{
+  "host": "places-db.cxzt0xf1ui4m.us-east-2.rds.amazonaws.com",
+  "database": "postgres",
+  "port": 5432
+}
