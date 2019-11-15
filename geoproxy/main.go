@@ -14,11 +14,9 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/NYTimes/gziphandler"
+	//"github.com/NYTimes/gziphandler"
 	uuid "github.com/google/uuid"
 )
 
@@ -73,7 +71,7 @@ type submitRequestPayloadStruct struct {
 	LatLng []float64 `json:"coordinate"`
 }
 
-type requestHandler struct {
+type viewRequestHandler struct {
 }
 
 type healthResponse struct {
@@ -137,6 +135,14 @@ func getEnv(key, fallback string) string {
 func getListenAddress() string {
 	port := getEnv("PORT", "1338")
 	return ":" + port
+}
+
+func getNullResponseObj(id string) ResponseObj {
+	var respObj ResponseObj
+	var emptyPosts []Post
+	respObj.Posts = emptyPosts
+	respObj.ID = id
+	return respObj
 }
 
 // Log the env variables required for a reverse proxy
@@ -392,6 +398,7 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 		res, err := http.Post(url.String(), "application/json", newReqBody)
 		if err != nil {
 			log.Printf("\tError when sending request: %v", err)
+			processResponse(getNullResponseObj(id.String()))
 		} else {
 			var responseObj ResponseObj
 			body, bodyErr := ioutil.ReadAll(res.Body)
@@ -415,10 +422,22 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 	}
 }
 
-func serveSubmitReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
-	if verbose {
-		log.Println("Making submit request")
+func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
+	if req.Method == "OPTIONS" {
+		handlePreflight(res, req)
+		return
 	}
+		// Submit request
+		if verbose {	
+			log.Println("Submit request received")
+		}
+		requestPayload := parseSubmitRequestBody(req)
+		target := getSubmitProxyURL(requestPayload.LatLng)
+		logSubmitRequestPayload(requestPayload, target)
+		if target == ERROR_URL {
+			log.Printf("Error: Could not send request due to incorrect request body\n")
+			return
+		}
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	url, _ := url.Parse(target)
 	proxy := httputil.NewSingleHostReverseProxy(url)
@@ -451,7 +470,7 @@ func setupTimer(id uuid.UUID) {
 	timeWait := 4 * time.Second
 	time.AfterFunc(timeWait, func() {
 		if verbose {
-			fmt.Printf("Timeout triggered for %s", id.String())
+			fmt.Printf("Timeout triggered for %s \n", id.String())
 		}
 		if mutex, ok := requestMutexMap[id]; ok {
 			mutex.Lock()
@@ -478,17 +497,22 @@ func setupTimer(id uuid.UUID) {
 	})
 }
 
-// Given a request send it to the appropriate url
-func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+func handlePreflight(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
-	if req.Method == "OPTIONS" {
-		fmt.Printf("Preflight request received\n")
+		if verbose {
+			fmt.Printf("Preflight request received\n")
+		}
 		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
-	}
+}
 
-	if strings.Contains(req.URL.Path, "view") {
+// Given a request send it to the appropriate url
+func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	if req.Method == "OPTIONS" {
+		handlePreflight(res, req)
+		return
+	}
 		// View request
 		var tag = uuid.New()
 		requestPayload := parseViewRequestBody(req)
@@ -519,25 +543,6 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 		mapMutex.Unlock()
 
 		serveViewReverseProxy(urls, res, req, requestPayload, tag)
-	} else if strings.Contains(req.URL.Path, "submit") {
-		// Submit request
-		log.Println("Submit request received")
-		requestPayload := parseSubmitRequestBody(req)
-		url := getSubmitProxyURL(requestPayload.LatLng)
-		log.Println("Conditional url attained")
-		logSubmitRequestPayload(requestPayload, url)
-		if url == ERROR_URL {
-			log.Printf("Error: Could not send request due to incorrect request body\n")
-			return
-		}
-
-		urlArray := make([]string, 0, 1)
-		urlArray = append(urlArray, url)
-
-		serveSubmitReverseProxy(url, res, req)
-	} else {
-		log.Printf("Unrecognized request received\n")
-	}
 }
 
 func checkMatches(resp *http.Response) bool {
@@ -743,13 +748,15 @@ func main() {
 		fmt.Printf("Map set up\n")
 	}
 
-	rh := &requestHandler{}
+	rh := &viewRequestHandler{}
 	// start server
 
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
-	gzHandleFunc := gziphandler.GzipHandler(rh)
-	http.Handle("/", gzHandleFunc)
+	//gzHandleFunc := gziphandler.GzipHandler(rh)
+	http.Handle("/view", rh)
+	//http.Handle("/view", gzHandleFunc)
+	http.HandleFunc("/submit", serveSubmitReverseProxy)
 
 	//http.HandleFunc("/", handleRequestAndRedirect)
 	//http.HandleFunc("/", testFixedResponse)
