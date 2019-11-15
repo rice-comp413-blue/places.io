@@ -221,16 +221,16 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	var LatLng []float64
 	lat := request.FormValue("lat")
 	lng := request.FormValue("lng")
-	var err error
-	LatLng[0], err = strconv.ParseFloat(lat, 64)
+	latVal, err := strconv.ParseFloat(lat, 64)
 	if err != nil {
 		panic(err)
 	}
-
-	LatLng[1], err = strconv.ParseFloat(lng, 64)
+	LatLng = append(LatLng, latVal)
+	lngVal, err := strconv.ParseFloat(lng, 64)
 	if err != nil {
 		panic(err)
 	}
+	LatLng = append(LatLng, lngVal)
 
 	var requestPayload submitRequestPayloadStruct
 	requestPayload.LatLng = LatLng
