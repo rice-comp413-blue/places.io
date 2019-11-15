@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	//"github.com/NYTimes/gziphandler"
+	"github.com/NYTimes/gziphandler"
 	uuid "github.com/google/uuid"
 )
 
@@ -754,8 +754,8 @@ func main() {
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	//gzHandleFunc := gziphandler.GzipHandler(rh)
-	http.Handle("/view", rh)
-	//http.Handle("/view", gzHandleFunc)
+	//http.Handle("/view", rh)
+	http.Handle("/view", gzHandleFunc)
 	http.HandleFunc("/submit", serveSubmitReverseProxy)
 
 	//http.HandleFunc("/", handleRequestAndRedirect)
