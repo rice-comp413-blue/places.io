@@ -753,7 +753,7 @@ func main() {
 
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
-	//gzHandleFunc := gziphandler.GzipHandler(rh)
+	gzHandleFunc := gziphandler.GzipHandler(rh)
 	//http.Handle("/view", rh)
 	http.Handle("/view", gzHandleFunc)
 	http.HandleFunc("/submit", serveSubmitReverseProxy)
