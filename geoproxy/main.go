@@ -67,6 +67,11 @@ type viewRequestPayloadStruct struct {
 	ID        string    `json:"id,omitempty"`
 }
 
+type countRequestPayloadStruct struct {
+	LatLng1   []float64 `json:"latlng1"`
+	LatLng2   []float64 `json:"latlng2"`
+}
+
 // Submit request passes the coord to post
 // "coordinate": [-20.3, 60]
 type submitRequestPayloadStruct struct {
@@ -200,8 +205,29 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Parsed view request payload:")
-	fmt.Printf("\t%+v\n", requestPayload)
+
+	if verbose {
+		fmt.Println("Parsed view request payload:")
+		fmt.Printf("\t%+v\n", requestPayload)
+	}
+
+	return requestPayload
+}
+
+func parseCountRequestBody(request *http.Request) countRequestPayloadStruct {
+	decoder := requestBodyDecoder(request)
+
+	var requestPayload countRequestPayloadStruct
+	err := decoder.Decode(&requestPayload)
+
+	if err != nil {
+		panic(err)
+	}
+	if verbose {
+		fmt.Println("Parsed count request payload:")
+		fmt.Printf("\t%+v\n", requestPayload)
+	}
+	
 	return requestPayload
 }
 
@@ -290,8 +316,9 @@ func getRangeIntersection(coordBox CoordBox, latRange CoordRange, lngRange Coord
 	}
 }
 
-// Get the url(s) for given coordinates of view request
-func getViewProxyURL(rawCoord1 []float64, rawCoord2 []float64) map[string]CoordBox {
+// Get the url(s) for given coordinates of request with a bounding box
+// Can be used for view or count request
+func getBoundingBoxURLs(rawCoord1 []float64, rawCoord2 []float64) map[string]CoordBox {
 	// Acts as a set of url strings
 	urls := make(map[string]CoordBox)
 
@@ -478,6 +505,28 @@ func setupTimer(id uuid.UUID) {
 	})
 }
 
+func serveCountRequest(res http.ResponseWriter, req *http.Request) {
+	// Todo: Handle preflight request
+	urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
+	if len(urls) == 0 {
+		return
+	}
+	target:=url[0]
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	url, err := url.Parse(target)
+	if err != nil {
+		log.Printf("Invalid url: %s \n", target)
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	proxy := httputil.NewSingleHostReverseProxy(url)
+	req.URL.Host = url.Host
+	req.URL.Scheme = url.Scheme
+	req.Host = url.Host
+	proxy.ServeHTTP(res,req)
+	return
+}
+
 // Given a request send it to the appropriate url
 func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
@@ -492,7 +541,7 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 		// View request
 		var tag = uuid.New()
 		requestPayload := parseViewRequestBody(req)
-		urls := getViewProxyURL(requestPayload.LatLng1, requestPayload.LatLng2)
+		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 		if verbose {
 			fmt.Printf("View request received\n")
 			fmt.Printf("Conditional url(s) attained\n")
@@ -750,6 +799,7 @@ func main() {
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
 	http.Handle("/", gzHandleFunc)
+	http.HandleFunc("/count", serveCountRequest)
 
 	//http.HandleFunc("/", handleRequestAndRedirect)
 	//http.HandleFunc("/", testFixedResponse)
