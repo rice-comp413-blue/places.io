@@ -507,11 +507,25 @@ func setupTimer(id uuid.UUID) {
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	// Todo: Handle preflight request
+	if req.Method == "OPTIONS" {
+		enableCors(&res)
+		res.WriteHeader(http.StatusOK)
+		return
+	}
+
+	var requestPayload := parseCountRequestBody(req) 
+	if &requestPayload == nil {
+		// Do the appropriate response to client
+		if verbose {
+			log.Println("Invalid count request from client")
+		}
+	}
+
 	urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 	if len(urls) == 0 {
 		return
 	}
-	target:=url[0]
+	target:=urls[0]
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	url, err := url.Parse(target)
 	if err != nil {
