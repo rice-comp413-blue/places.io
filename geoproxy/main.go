@@ -513,7 +513,7 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var requestPayload := parseCountRequestBody(req) 
+	requestPayload := parseCountRequestBody(req) 
 	if &requestPayload == nil {
 		// Do the appropriate response to client
 		if verbose {
