@@ -521,11 +521,22 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
-	if len(urls) == 0 {
-		return
+	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
+
+	if len(urlsMap) == 0 {
+		// If no urls were found then return error
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
-	target:=urls[0]
+
+	// Note: below is the code for getting a single URL to forward our request to. 
+    	keys := make([]string, 0, len(urlsMap))
+        for k := range urlsMap {
+		keys = append(keys, k)
+	}
+
+	target:=keys[0] // Get first url
+	// Above is only a temporary solution
+
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	url, err := url.Parse(target)
 	if err != nil {
