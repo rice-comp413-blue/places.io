@@ -27,7 +27,7 @@ class Box {
             });
     }
 
-    static getTotalStoryCount = (req, result) => {
+    static getTotalStoryCount(req, result) {
         pool.query("SELECT COUNT(storyid) FROM story " +
                     "WHERE lat <= $1 and lat >= $2 and long <= $3 and long >= $4",
             [req.latlng1[0], req.latlng2[0], req.latlng2[1], req.latlng1[1]],
