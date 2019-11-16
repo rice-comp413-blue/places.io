@@ -39,7 +39,8 @@ app.get('/', (request, response) => { response.json({ info: 'places.io server' }
 app.post('/view',
 	        (req,resp,next) => {
 			console.log(req);
-			return mockResponse;
+			res.send(mockResponse) // Send hard-coded response
+			return ; // Stop early here. 
 		}, validationMiddleware.validViewRequestProperties, story.getStoriesInBox); // view stories
 
 // res.send({id:aaa})
