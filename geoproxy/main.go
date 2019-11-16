@@ -553,7 +553,8 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
-		var tag = uuid.New()
+		//var tag = uuid.New()
+		tag,_ := uuid.FromString("ee66bf5b-524b-4786-ba88-0e9e8026dbca")
 		requestPayload := parseViewRequestBody(req)
 		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 		if verbose {
