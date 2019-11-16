@@ -391,6 +391,7 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 	// Edit request body to include id
 	reqPayload.ID = id.String()
 
+	fmt.Printf("%v \n", reqPayload)
 	setupTimer(id)
 	// Send to other servers for view request
 	for target, coordBox := range targets {
@@ -564,8 +565,13 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
-		//var tag = uuid.New()
-		tag, _ := uuid.FromBytes([]byte("ee66bf5b-524b-4786-ba88-0e9e8026dbca"))
+		var tag = uuid.New()
+		//tag, err := uuid.FromBytes([]byte("ee66bf5b-524b-4786-ba88-0e9e8026dbca"))
+		//tag, err := uuid.FromBytes([]byte("123e4567-e89b-12d3-a456-426655440000"))
+		//if err != nil {
+		//	fmt.Println("Error making uuid")
+		//}
+	
 		requestPayload := parseViewRequestBody(req)
 		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 		if verbose {
@@ -760,14 +766,13 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		var responseEntries = getResponse(id)
 		// First marshal the response
 		var data, _ = json.Marshal(responseEntries)
+		data_b := []byte(data.Posts)
 
 		if verbose {
-			fmt.Println(data)
+			//fmt.Printf("Response object: %v \n", data)
+			fmt.Printf("data: %s \n", string(data_b))
 		}
-		data_b := []byte(data)
-		fmt.Printf("data: %s \n", string(data))
 		// Get the response writer
-		//return
 		var resWriter = responseWriterMap[id]
 		// Set the appropriate things on the response writer
 		resWriter.Header().Set("Content-Type", "application/json")

@@ -10,7 +10,7 @@ const port = 1331;
 //const port = 3000;
 
 const mockResponse = {
-	  "entries": [
+	  entries: [
 		      {
 			            "storyid": "def981c0-f059-11e9-b7b7-2917fbf11a40",
 			            "timestamp": "2019-10-17T02:12:18.000Z",
@@ -20,7 +20,7 @@ const mockResponse = {
 			            "image_url": null
 			}
 	  ],
-	"id":"ee66bf5b-524b-4786-ba88-0e9e8026dbca"
+	id:"ee66bf5b-524b-4786-ba88-0e9e8026dbca"
 }
 
 
@@ -38,8 +38,10 @@ app.get('/', (request, response) => { response.json({ info: 'places.io server' }
 
 app.post('/view',
 	        (req,resp,next) => {
-			console.log(req);
-			res.send(mockResponse) // Send hard-coded response
+			console.log(req.body);
+			//console.log(req);
+			mockResponse.id=req.body.id;
+			resp.send(mockResponse); // Send hard-coded response
 			return ; // Stop early here. 
 		}, validationMiddleware.validViewRequestProperties, story.getStoriesInBox); // view stories
 
