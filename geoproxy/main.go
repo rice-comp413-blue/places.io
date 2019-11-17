@@ -460,15 +460,20 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 		if verbose {	
 			log.Println("Submit request received")
 		}
-		requestPayload := parseSubmitRequestBody(req)
-		target := getSubmitProxyURL(requestPayload.LatLng)
-		logSubmitRequestPayload(requestPayload, target)
-		if target == ERROR_URL {
-			log.Printf("Error: Could not send request due to incorrect request body\n")
-			return
-		}
+	requestPayload := parseSubmitRequestBody(req)
+	target := getSubmitProxyURL(requestPayload.LatLng)
+	logSubmitRequestPayload(requestPayload, target)
+	if target == ERROR_URL {
+		log.Printf("Error: Could not send request due to incorrect request body\n")
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			// Todo: check if this is valid. I put this as the response because we assume that if we can't find the url the client gave us a bad request
+		return
+	}
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	url, _ := url.Parse(target)
+	url, parseErr := url.Parse(target)
+	if parseErr != nil {
+		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 	proxy := httputil.NewSingleHostReverseProxy(url)
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
@@ -540,9 +545,10 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		if verbose {
 			log.Println("Invalid count request from client")
 		}
+		 
 		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
-
+  // Couldn't parse correctly.
 	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 
 	if len(urlsMap) == 0 {
@@ -575,19 +581,6 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 }
 
 // Given a request send it to the appropriate url
-func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	//  handle pre-flight request from browser
-	if req.Method == "OPTIONS" {
-		if verbose {
-			fmt.Printf("Preflight request received\n")
-		}
-  }
-		enableCors(&res)
-		res.WriteHeader(http.StatusOK)
-		return
-}
-
-// Given a request send it to the appropriate url
 func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if req.Method == "OPTIONS" {
 		handlePreflight(res, req)
@@ -611,6 +604,7 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 			// todo: make sure that this is returning the actual url and not index
 			if url == ERROR_URL {
 				fmt.Println("Error: Could not send request due to incorrect request body")
+				http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
 			responseCount = responseCount + 1
@@ -850,7 +844,9 @@ func main() {
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
-	http.Handle("/", gzHandleFunc)
+	//http.Handle("/view", rh)
+	http.Handle("/view", gzHandleFunc)
+	http.HandleFunc("/submit", serveSubmitReverseProxy)
 	http.HandleFunc("/count", serveCountRequest)
 
 	//http.HandleFunc("/", handleRequestAndRedirect)
