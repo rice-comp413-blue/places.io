@@ -458,15 +458,20 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 		if verbose {	
 			log.Println("Submit request received")
 		}
-		requestPayload := parseSubmitRequestBody(req)
-		target := getSubmitProxyURL(requestPayload.LatLng)
-		logSubmitRequestPayload(requestPayload, target)
-		if target == ERROR_URL {
-			log.Printf("Error: Could not send request due to incorrect request body\n")
-			return
-		}
+	requestPayload := parseSubmitRequestBody(req)
+	target := getSubmitProxyURL(requestPayload.LatLng)
+	logSubmitRequestPayload(requestPayload, target)
+	if target == ERROR_URL {
+		log.Printf("Error: Could not send request due to incorrect request body\n")
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			// Todo: check if this is valid. I put this as the response because we assume that if we can't find the url the client gave us a bad request
+		return
+	}
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	url, _ := url.Parse(target)
+	url, parseErr := url.Parse(target)
+	if parseErr != nil {
+		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 	proxy := httputil.NewSingleHostReverseProxy(url)
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
@@ -538,6 +543,8 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		if verbose {
 			log.Println("Invalid count request from client")
 		}
+		// Couldn't parse correctly. 
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
 
 	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
@@ -594,6 +601,7 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 			// todo: make sure that this is returning the actual url and not index
 			if url == ERROR_URL {
 				fmt.Println("Error: Could not send request due to incorrect request body")
+				http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
 			responseCount = responseCount + 1
