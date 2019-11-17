@@ -45,7 +45,8 @@ type Post struct {
 	Lat       float64   `json:"lat"`
 	Lng       float64   `json:"long"`
 	Text      string    `json:"text"`
-	HasImage  bool      `json:"hasimage"`
+	ImageURL  string    `json:"image_url"`
+	//HasImage  bool      `json:"hasimage"`
 }
 
 // ResponseObj struct for server response to view
@@ -397,6 +398,7 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 	// Edit request body to include id
 	reqPayload.ID = id.String()
 
+	fmt.Printf("%v \n", reqPayload)
 	setupTimer(id)
 	// Send to other servers for view request
 	for target, coordBox := range targets {
@@ -538,6 +540,7 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		if verbose {
 			log.Println("Invalid count request from client")
 		}
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
 
 	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
@@ -574,9 +577,11 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 // Given a request send it to the appropriate url
 func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
+	if req.Method == "OPTIONS" {
 		if verbose {
 			fmt.Printf("Preflight request received\n")
 		}
+  }
 		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -590,6 +595,7 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	}
 		// View request
 		var tag = uuid.New()
+	
 		requestPayload := parseViewRequestBody(req)
 		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 		if verbose {
@@ -715,6 +721,9 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 func processResponse(response ResponseObj) {
 	//b := []byte(response.ID)
 	var id, err = uuid.Parse(response.ID)
+	if verbose {
+		fmt.Printf("Processing response obj: %v \n", response)
+	}
 	if err != nil {
 		panic(err)
 	} else {
@@ -726,6 +735,7 @@ func processResponse(response ResponseObj) {
 			var responseEntries = response.Posts
 			responsesMap[id] = responsesMap[id] - 1 // decrement number of responses we're waiting on
 			var pl = queryMap[id]
+			fmt.Printf("Len response %d \n", len(responseEntries))
 			for _, responseEntry := range responseEntries {
 				pl.PushToCapacity(entriesToServe, &responseEntry)
 			}
@@ -735,11 +745,13 @@ func processResponse(response ResponseObj) {
 				}
 				readyToServe = true
 			}
+			queryMap[id]=pl
 			mutex.Unlock()
 			if readyToServe {
 				if verbose {
 					log.Printf("About to serve request for id: %s\n", id)
 				}
+				
 				serveResponseThenCleanup(id)
 			}
 		} else {
@@ -756,29 +768,38 @@ func getResponse(id uuid.UUID) PostList {
 
 func serveResponseThenCleanup(id uuid.UUID) {
 	if requestMutex, ok := requestMutexMap[id]; ok {
-		fmt.Println("found mutex")
 		requestMutex.Lock() // We lock here in case we have two or more responses arrive after timeout
 		// We don't want both responses triggering us to serve the response.
 		// This shouldn't be a problem if all responses arrive in a timely manner though
 		defer requestMutex.Unlock()
 
-		var responseEntries = getResponse(id)
+		// Get the response writer
+		var resWriter = responseWriterMap[id]
+		var pl = getResponse(id)
+		// Get the actual structs corresponding to the pointers in the list
+		responseEntries := make([]Post, len(pl))
+		for i, post := range pl {
+			responseEntries[i]=*post
+		}
 		// First marshal the response
-		var data, _ = json.Marshal(responseEntries)
+		var data, marshErr = json.Marshal(responseEntries)
+		if marshErr != nil {
+			// TODO: check if we want to return this response code
+			http.Error(resWriter, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		}
+
+		data_b := []byte(data)
 
 		if verbose {
-			fmt.Println(data)
+			fmt.Printf("Response list: %v \n", responseEntries)
+			//fmt.Printf("data: %s \n", string(data_b))
 		}
-		data_b := []byte(data)
-		fmt.Printf("data: %s \n", string(data))
-		// Get the response writer
-		//return
-		var resWriter = responseWriterMap[id]
+
 		// Set the appropriate things on the response writer
 		resWriter.Header().Set("Content-Type", "application/json")
 		//resWriter.Header().Set("Content-Length", string(1000))
 		resWriter.Header().Set("Content-Length", strconv.Itoa(len(data_b)))
-		resWriter.WriteHeader(http.StatusOK)
+		//resWriter.WriteHeader(http.StatusOK)
 		// todo: check which status code we want
 		if verbose {
 			fmt.Printf("Num bytes: %d \n", binary.Size(data_b))
@@ -835,11 +856,11 @@ func main() {
 	//http.HandleFunc("/", handleRequestAndRedirect)
 	//http.HandleFunc("/", testFixedResponse)
 	//Initialize ticker + channel + run in parallel
-
+	/*
 	ticker := time.NewTicker(5000 * time.Millisecond)
 	done := make(chan bool)
 	go checkHealth(ticker, done)
-
+	*/
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
 	}

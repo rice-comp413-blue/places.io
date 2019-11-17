@@ -1,14 +1,26 @@
 package main
 
+import (
+	"fmt"
+	"log"
+)
+
 type PostList []*Post
 
 func (pl *PostList) PushToCapacity(cap int, post *Post) {
 	old := *pl
 	n := len(old)
+	if verbose {
+		fmt.Printf("Length of list before pushing %d \n", n)
+	}
 	if n < cap {
 		*pl = append(*pl, post)
+	if verbose {
+		fmt.Printf("Length of list after pushing %d \n", len(*pl))
+	}
 		return
 	}
+	// If the list is at capacity, see if there's an element smaller than what we're pushing. If so then push this instead
 	var lowInd = -1
 	var lowPost = post
 	for i, post2 := range old {
@@ -19,6 +31,9 @@ func (pl *PostList) PushToCapacity(cap int, post *Post) {
 	}
 	if lowInd == -1 {
 		return
+	}
+	if verbose {
+		log.Println("Adding to list")
 	}
 	old[lowInd] = post
 }
