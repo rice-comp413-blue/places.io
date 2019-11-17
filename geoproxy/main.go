@@ -521,6 +521,7 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		if verbose {
 			log.Println("Invalid count request from client")
 		}
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 	}
 
 	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
@@ -558,7 +559,6 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	//  handle pre-flight request from browser
 	if req.Method == "OPTIONS" {
-		fmt.Printf("Preflight request received\n")
 		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -567,11 +567,6 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 	if strings.Contains(req.URL.Path, "view") {
 		// View request
 		var tag = uuid.New()
-		//tag, err := uuid.FromBytes([]byte("ee66bf5b-524b-4786-ba88-0e9e8026dbca"))
-		//tag, err := uuid.FromBytes([]byte("123e4567-e89b-12d3-a456-426655440000"))
-		//if err != nil {
-		//	fmt.Println("Error making uuid")
-		//}
 	
 		requestPayload := parseViewRequestBody(req)
 		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
@@ -603,10 +598,8 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 		serveViewReverseProxy(urls, res, req, requestPayload, tag)
 	} else if strings.Contains(req.URL.Path, "submit") {
 		// Submit request
-		log.Println("Submit request received")
 		requestPayload := parseSubmitRequestBody(req)
 		url := getSubmitProxyURL(requestPayload.LatLng)
-		log.Println("Conditional url attained")
 		logSubmitRequestPayload(requestPayload, url)
 		if url == ERROR_URL {
 			log.Printf("Error: Could not send request due to incorrect request body\n")
@@ -779,7 +772,7 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		}
 		// First marshal the response
 		var data, marshErr = json.Marshal(responseEntries)
-		if marshErr == nil {
+		if marshErr != nil {
 			// TODO: check if we want to return this response code
 			http.Error(resWriter, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		}
