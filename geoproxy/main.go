@@ -20,6 +20,9 @@ import (
 	"sync"
 	"time"
 	"strconv"
+    aws "github.com/aws/aws-sdk-go/aws"
+    session "github.com/aws/aws-sdk-go/aws/session"
+    servicediscovery "github.com/aws/aws-sdk-go/service/servicediscovery"
 )
 
 var verbose = false
@@ -724,7 +727,29 @@ func multiServerMapCleanup(id uuid.UUID) {
 	mapMutex.Unlock()
 }
 
+func check_service() {
+	fmt.Println("Check service.")
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+        SharedConfigState: session.SharedConfigEnable,
+    }))
+    svc := servicediscovery.New(sess, aws.NewConfig().WithRegion("us-east-2"))
+    req, res := svc.DiscoverInstancesRequest(&servicediscovery.DiscoverInstancesInput{
+		HealthStatus:  aws.String(servicediscovery.HealthStatusFilterHealthy),
+		NamespaceName: aws.String("dns-namespace1"),
+		ServiceName:   aws.String("sd-service1"),
+	})
+	err := req.Send()
+	if err == nil {
+		fmt.Println(res)
+	} else {
+		fmt.Println("Error")
+		fmt.Println(err)
+	}
+}
+
 func main() {
+	check_service()
+
 	// Log setup values
 	logSetup()
 	setupMap()
