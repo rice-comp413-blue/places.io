@@ -18,7 +18,8 @@ class MainApp extends React.Component {
             boundingBox: {
                 upperLeft: [],
                 bottomRight: []
-            }
+            },
+            selectedStoryId: null
         };
     }
 
@@ -43,6 +44,10 @@ class MainApp extends React.Component {
         });
     }
 
+    onStoryClick(storyId) {
+        console.log("selected story: ", storyId)
+        this.setState({selectedStoryId: storyId})
+    }    
 
     render() {
 
@@ -59,6 +64,8 @@ class MainApp extends React.Component {
                         feed={this.state.currentData}
                         upperLeft={this.state.boundingBox.upperLeft}
                         bottomRight={this.state.boundingBox.bottomRight}
+                        onStoryClick={this.onStoryClick.bind(this)}
+                        selectedStory={this.state.selectedStoryId}
                     />
                 </Col>
                 <Col md={9}>
@@ -67,7 +74,10 @@ class MainApp extends React.Component {
                         updateLatLngFunc={this.updateLatLngFunc.bind(this)}
                         updateCurrentDataPoints={this.updateCurrentDataPoints.bind(this)}
                         updateBoundingBox={this.updateBoundingBox.bind(this)}
-                        markers={this.state.currentData} />
+                        markers={this.state.currentData} 
+                        onStoryClick={this.onStoryClick.bind(this)}
+                        selectedStory={this.state.selectedStoryId}
+                        />
                 </Col>
             </Row>
         );

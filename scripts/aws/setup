@@ -24,7 +24,7 @@ ecs-cli --version
 jq --version
 aws --version
 
-CREDENTIAL_FILE="secrets.json"
+CREDENTIAL_FILE="server/secrets.json"
 
 # setup credentials
 AWS_ACCESS_KEY_ID=$(cat $CREDENTIAL_FILE | jq '.AWS.users.application.accessKeyId')

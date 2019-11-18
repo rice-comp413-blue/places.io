@@ -1,10 +1,10 @@
 const {Pool} = require('pg');
-const auth = require('./connection').db_auth;
+const secrets = require("../secrets.json");
 
-const pool = new Pool(auth);
+const pool = new Pool(secrets.AWS.dbAuth);
 
 pool.connect(function(err) {
-    if (err) throw err;
+  if (err) throw err;
 });
 
 module.exports = pool;

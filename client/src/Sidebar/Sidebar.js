@@ -64,7 +64,7 @@ class Sidebar extends React.Component {
                     }} // purple400
                 />
                 {this.props.mode === 'view' ?
-                    <Feed className="feed" elements={this.props.feed} /> :
+                    <Feed className="feed" elements={this.props.feed} onStoryClick={this.props.onStoryClick} selectedStory={this.props.selectedStory}/> :
                     <Form
                         updateLatLngFunc={this.props.updateLatLngFunc.bind(this)}
                         curLatLng={this.props.curLatLng}></Form>

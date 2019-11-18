@@ -1,28 +1,35 @@
 package main
 
+//Notes:
+//Some errors from proxy.ServeHTTP cannot be caught and modified bc of how the function is written.
+
+//Resources:
+//https://www.integralist.co.uk/posts/golang-reverse-proxy/
+//https://hackernoon.com/writing-a-reverse-proxy-in-just-one-line-with-go-c1edfa78c84b
+
 import (
+	"errors"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/NYTimes/gziphandler"
-	uuid "github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"net/http/httputil"
-	"golang.org/x/net/html"
 	"net/url"
 	"os"
-	"strings"
+	"strconv"
 	"sync"
 	"time"
 	"strconv"
     aws "github.com/aws/aws-sdk-go/aws"
     session "github.com/aws/aws-sdk-go/aws/session"
     servicediscovery "github.com/aws/aws-sdk-go/service/servicediscovery"
+	"github.com/NYTimes/gziphandler"
+	uuid "github.com/google/uuid"
 )
 
 var verbose = false
@@ -32,21 +39,29 @@ type Coord struct {
 	Lat, Lng float64
 }
 
-// Key struct is for map pointing to correct server
+// CoordBox struct represents a box with topleft corner and bottomright corner
+type CoordBox struct {
+	TopLeft     Coord
+	BottomRight Coord
+}
+
+// CoordRange is for range of coords for mapping to servers
 type CoordRange struct {
 	Low, High float64
 }
 
-// Post struct for server response to view
+// Post struct for server response's post to view
 type Post struct {
 	StoryID   string    `json:"storyid"`
 	Timestamp time.Time `json:"timestamp"`
 	Lat       float64   `json:"lat"`
 	Lng       float64   `json:"long"`
 	Text      string    `json:"text"`
-	HasImage  bool      `json:"hasimage"`
+	ImageURL  string    `json:"image_url"`
+	//HasImage  bool      `json:"hasimage"`
 }
 
+// ResponseObj struct for server response to view
 type ResponseObj struct {
 	Posts []Post `json:"entries"`
 	ID    string `json:"id"`
@@ -56,8 +71,16 @@ type ResponseObj struct {
 // "latlng1": [2.5, -10.3],
 // "latlng2": [0, 80.5]
 type viewRequestPayloadStruct struct {
-	LatLng1 []float64 `json:"latlng1"`
-	LatLng2 []float64 `json:"latlng2"`
+	LatLng1   []float64 `json:"latlng1"`
+	LatLng2   []float64 `json:"latlng2"`
+	Skip      int       `json:"skip"`
+	PageLimit int       `json:"pagelimit"`
+	ID        string    `json:"id,omitempty"`
+}
+
+type countRequestPayloadStruct struct {
+	LatLng1   []float64 `json:"latlng1"`
+	LatLng2   []float64 `json:"latlng2"`
 }
 
 // Submit request passes the coord to post
@@ -66,7 +89,7 @@ type submitRequestPayloadStruct struct {
 	LatLng []float64 `json:"coordinate"`
 }
 
-type requestHandler struct {
+type viewRequestHandler struct {
 }
 
 type healthResponse struct {
@@ -75,8 +98,11 @@ type healthResponse struct {
 	Text      string
 }
 
-// 2D map of LatCoordRange:LngCoordRange:ServerURL
-var data = map[CoordRange]map[CoordRange]string{}
+// List of server URLs
+var serverURLs []string
+
+// 2D map of LatCoordRange:LngCoordRange:Index of server in serverURLs
+var coordBoxToServer = map[CoordRange]map[CoordRange]int{}
 
 // Error coord
 var ERROR_COORD = Coord{360, 360}
@@ -129,6 +155,14 @@ func getListenAddress() string {
 	return ":" + port
 }
 
+func getNullResponseObj(id string) ResponseObj {
+	var respObj ResponseObj
+	var emptyPosts []Post
+	respObj.Posts = emptyPosts
+	respObj.ID = id
+	return respObj
+}
+
 // Log the env variables required for a reverse proxy
 func logSetup() {
 	a_condtion_url := os.Getenv("A_CONDITION_URL")
@@ -143,20 +177,23 @@ func logSetup() {
 
 // Setups the mapping to servers
 func setupMap() {
-	// Map will map lat-long ranges to env strings
+	// Array holds env strings
+	serverURLs = []string{"A_CONDITION_URL", "B_CONDITION_URL"}
+
+	// Map will map lat-long ranges to index in serverURLs
 	// latitude: (-90, 90) longitude: (-180, 180)
 
-	data[cr1] = map[CoordRange]string{}
-	data[cr2] = map[CoordRange]string{}
-	data[cr1][cr3] = "A_CONDITION_URL"
-	data[cr2][cr3] = "B_CONDITION_URL"
+	coordBoxToServer[cr1] = map[CoordRange]int{}
+	coordBoxToServer[cr2] = map[CoordRange]int{}
+	coordBoxToServer[cr1][cr3] = 0
+	coordBoxToServer[cr2][cr3] = 1
 }
 
 func modifyMap(conditional int) {
 	if conditional == 0 {
-		data[cr1][cr3] = "B_CONDITION_URL"
+		coordBoxToServer[cr1][cr3] = 1
 	} else if conditional == 1 {
-		data[cr2][cr3] = "A_CONDITION_URL"
+		coordBoxToServer[cr2][cr3] = 0
 	}
 
 }
@@ -187,8 +224,29 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Printing view payload")
-	fmt.Printf("%+v\n", requestPayload)
+
+	if verbose {
+		fmt.Println("Parsed view request payload:")
+		fmt.Printf("\t%+v\n", requestPayload)
+	}
+
+	return requestPayload
+}
+
+func parseCountRequestBody(request *http.Request) countRequestPayloadStruct {
+	decoder := requestBodyDecoder(request)
+
+	var requestPayload countRequestPayloadStruct
+	err := decoder.Decode(&requestPayload)
+
+	if err != nil {
+		panic(err)
+	}
+	if verbose {
+		fmt.Println("Parsed count request payload:")
+		fmt.Printf("\t%+v\n", requestPayload)
+	}
+	
 	return requestPayload
 }
 
@@ -208,17 +266,16 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	var LatLng []float64
 	lat := request.FormValue("lat")
 	lng := request.FormValue("lng")
-	var err error
-	LatLng[0], err = strconv.ParseFloat(lat, 64)
+	latVal, err := strconv.ParseFloat(lat, 64)
 	if err != nil {
 		panic(err)
 	}
-
-	LatLng[1], err = strconv.ParseFloat(lng, 64)
+	LatLng = append(LatLng, latVal)
+	lngVal, err := strconv.ParseFloat(lng, 64)
 	if err != nil {
 		panic(err)
 	}
-
+	LatLng = append(LatLng, lngVal)
 
 	var requestPayload submitRequestPayloadStruct
 	requestPayload.LatLng = LatLng
@@ -227,13 +284,13 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 }
 
 // Log the view typeform payload and redirect url
-func logViewRequestPayload(requestionPayload viewRequestPayloadStruct, proxyUrl string) {
-	log.Printf("latlng1: %v, latlng2: %v, proxy_url: %s\n", requestionPayload.LatLng1, requestionPayload.LatLng2, proxyUrl)
+func logViewRequestPayload(requestionPayload viewRequestPayloadStruct, proxyURL string) {
+	log.Printf("\tlatlng1: %v, latlng2: %v, proxy_url: %s\n", requestionPayload.LatLng1, requestionPayload.LatLng2, proxyURL)
 }
 
 // Log the submit typeform payload and redirect url
-func logSubmitRequestPayload(requestionPayload submitRequestPayloadStruct, proxyUrl string) {
-	log.Printf("coordinate: %v, proxy_url: %s\n", requestionPayload.LatLng, proxyUrl)
+func logSubmitRequestPayload(requestionPayload submitRequestPayloadStruct, proxyURL string) {
+	log.Printf("coordinate: %v, proxy_url: %s\n", requestionPayload.LatLng, proxyURL)
 }
 
 // Given float array in form [0.0, 0.0], create and return coord struct
@@ -256,53 +313,59 @@ func parseCoord(coord []float64) Coord {
 	return Coord{coord[0], coord[1]}
 }
 
-func rangesOverlap(start1 float64, end1 float64, start2 float64, end2 float64) bool {
-	overlap := math.Min(end1, end2) >= math.Max(start1, start2)
+func rangesOverlap(start1 float64, end1 float64, coordRange CoordRange) bool {
+	overlap := math.Min(end1, coordRange.High) >= math.Max(start1, coordRange.Low)
 	// Below two cases account for case where one interval encompasses the other
-	overlap = overlap || (start1 < start2 && end1 > end2)
-	overlap = overlap || (start2 < start1 && end2 > end1)
+	overlap = overlap || (start1 < coordRange.Low && end1 > coordRange.High)
+	overlap = overlap || (coordRange.Low < start1 && coordRange.High > end1)
 	//fmt.Println(overlap)
 	return overlap
 }
 
-// Get url for a coord of request. We may not need this anymore after changing logic to
-// get multiple proxy urls for view requests (just move logic back to getSubmitProxyUrl)
-func getProxyURL(coord Coord) string {
-	for latRange := range data {
-		if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
-			for lngRange := range data[latRange] {
-				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
-					return os.Getenv(data[latRange][lngRange])
-				}
-			}
-		}
+func getRangeIntersection(coordBox CoordBox, latRange CoordRange, lngRange CoordRange) CoordBox {
+	return CoordBox{
+		TopLeft: Coord{
+			Lat: math.Min(coordBox.TopLeft.Lat, latRange.High),
+			Lng: math.Max(coordBox.TopLeft.Lng, lngRange.Low),
+		},
+		BottomRight: Coord{
+			Lat: math.Max(coordBox.BottomRight.Lat, latRange.Low),
+			Lng: math.Min(coordBox.BottomRight.Lng, lngRange.High),
+		},
 	}
-	return ERROR_URL
 }
 
-// Get the url(s) for given coordinates of view request
-func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
-	// Acts as a set of urls
-	urls := make(map[string]bool)
+// Get the url(s) for given coordinates of request with a bounding box
+// Can be used for view or count request
+func getBoundingBoxURLs(rawCoord1 []float64, rawCoord2 []float64) map[string]CoordBox {
+	// Acts as a set of url strings
+	urls := make(map[string]CoordBox)
 
 	// Parse each coord
 	topLeft := parseCoord(rawCoord1)
 	bottomRight := parseCoord(rawCoord2)
 
-	for latRange := range data {
+	// Note that bottom right lat < top left lat
+	// bottom right lng > top left lng
+	coordBox := CoordBox{
+		TopLeft:     topLeft,
+		BottomRight: bottomRight,
+	}
+
+	for latRange := range coordBoxToServer {
 		//fmt.Printf("%v",latRange)
-		if rangesOverlap(topLeft.Lat, bottomRight.Lat, latRange.Low, latRange.High) {
+		if rangesOverlap(bottomRight.Lat, topLeft.Lat, latRange) {
 			//fmt.Printf("%v",latRange)
-			for lngRange := range data[latRange] {
-				if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange.Low, lngRange.High) {
+			for lngRange := range coordBoxToServer[latRange] {
+				if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange) {
 					// Check if we have already added url
-					urlString := os.Getenv(data[latRange][lngRange])
+					urlString := os.Getenv(serverURLs[coordBoxToServer[latRange][lngRange]])
 					if verbose {
 						fmt.Println(urlString)
 					}
-					// url, exists := urls[urlString]
-					if !urls[urlString] {
-						urls[urlString] = true
+
+					if _, exists := urls[urlString]; !exists {
+						urls[urlString] = getRangeIntersection(coordBox, latRange, lngRange)
 					}
 				}
 			}
@@ -313,14 +376,23 @@ func getViewProxyUrl(rawCoord1 []float64, rawCoord2 []float64) map[string]bool {
 }
 
 // Get the url for given coordinates of submit request
-func getSubmitProxyUrl(rawCoord []float64) string {
+func getSubmitProxyURL(rawCoord []float64) string {
 	coord := parseCoord(rawCoord)
 
 	if coord == ERROR_COORD {
 		return ERROR_URL
 	}
 
-	return getProxyURL(coord)
+	for latRange := range coordBoxToServer {
+		if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
+			for lngRange := range coordBoxToServer[latRange] {
+				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
+					return os.Getenv(serverURLs[coordBoxToServer[latRange][lngRange]])
+				}
+			}
+		}
+	}
+	return ERROR_URL
 }
 
 func isJSON(s string) bool {
@@ -328,114 +400,139 @@ func isJSON(s string) bool {
 	return json.Unmarshal([]byte(s), &js) == nil
 }
 
-func serveReverseProxy(target []string, res http.ResponseWriter, req *http.Request, id uuid.UUID) {
-	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	if id == uuid.Nil {
-		// Then we just have a submit request.
-		// We only have to send it to a single server.
-		// Just process it normally
-		if verbose {
-			log.Println("Making submit request")
-		}
-		url, _ := url.Parse(target[0])
-		proxy := httputil.NewSingleHostReverseProxy(url)
-		req.URL.Host = url.Host
-		req.URL.Scheme = url.Scheme
-		req.Host = url.Host
-		if verbose {
-			for header, values := range req.Header {
-				for _, value := range values {
-					log.Printf("head: %s, val: %s \n", header, value)
-				}
-			}
-		}
-		proxy.ServeHTTP(res, req)
-		return
-	}
-
+// Takes in the new latlng box, response writer, request, unmarshalled view request payload, and uuid for request
+func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter, req *http.Request, reqPayload viewRequestPayloadStruct, id uuid.UUID) {
 	if verbose {
 		log.Println("Making view request")
 	}
-	// Read body to buffer
-
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		return
-	}
-
-	log.Printf("req url: %s \n", html.EscapeString(req.URL.Path))
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 
 	// Edit request body to include id
-	buff := bytes.NewBuffer(body)
-	bodyStr := buff.String()
-	// This is where we want to insert the id param
-	i := strings.LastIndex(bodyStr, "}")
-	// Convert to runes to split
-	runes := []rune(bodyStr)
-	// Left side string of \n}
-	leftStr := string(runes[0:i])
-	buff = bytes.NewBufferString(leftStr)
-	// Concatenate new id param and request body remainder
-	buff.WriteString(",\"id\":" + "\"" + id.String() + "\"")
-	buff.WriteString(string(runes[i:len(runes)]))
-	buffBytes := buff.Bytes()
+	reqPayload.ID = id.String()
 
+	fmt.Printf("%v \n", reqPayload)
 	setupTimer(id)
-	//fmt.Println(buff.String())
-	if verbose {
-		log.Printf("body %s \n", string(buffBytes))
-	}
 	// Send to other servers for view request
-	for i := 0; i < len(target); i++ {
-		// parse the url
-		url, _ := url.Parse(target[i])
-		url.Path = "/view"
+	for target, coordBox := range targets {
 		if verbose {
-			log.Printf("url: %s \n", target[i])
+			fmt.Printf("\tURL serving to: %s \n", target)
 		}
-		newReqBody := ioutil.NopCloser(bytes.NewBuffer(buffBytes))
-		// reusing requests is unreliable, so copy to new request
+		logViewRequestPayload(reqPayload, target)
 
-		res, err := http.Post(url.String(), "application/json", newReqBody)
+		// parse the url
+		url, _ := url.Parse(target)
+		url.Path = "/view"
+
+		// Edit coord box to intersecting box with server region
+		reqPayload.LatLng1 = []float64{coordBox.TopLeft.Lat, coordBox.TopLeft.Lng}
+		reqPayload.LatLng2 = []float64{coordBox.BottomRight.Lat, coordBox.BottomRight.Lng}
+		newReq, err := json.Marshal(reqPayload)
 		if err != nil {
-			log.Printf("Error when sending request", err)
+			fmt.Println("\tError marshalling request payload for view: ", err)
+		}
+		newReqBody := ioutil.NopCloser(bytes.NewBuffer(newReq))
+
+		if verbose {
+			log.Printf("\tServing request to %s: %s", target, string(newReq))
+		}
+
+		resp, err := http.Post(url.String(), "application/json", newReqBody)
+		if err != nil {
+			log.Printf("\tError when sending request: %v", err)
+			processResponse(getNullResponseObj(id.String()))
 		} else {
 			var responseObj ResponseObj
-			/*
-				fmt.Println("HTTP Response Status:", res.StatusCode, http.StatusText(res.StatusCode))
-				//fmt.Println(res.Body)
-				buf := new(bytes.Buffer)
-				buf.ReadFrom(res.Body)
-				newStr:=buf.String()
-				fmt.Println(newStr)
-
-				if verbose {
-					for k, v := range res.Header {
-						log.Printf("head: %s, val: %s \n", k, v)
-					}
-				}
-			*/
-			body, bodyErr := ioutil.ReadAll(res.Body)
+			body, bodyErr := ioutil.ReadAll(resp.Body)
 			if bodyErr != nil {
 				// Do we want to stop the program here
-				log.Fatal(bodyErr)
+				log.Fatal("\tError reading view response: ", bodyErr)
+				http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 
 			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
-				log.Println(unmarshalErr)
-				
+				log.Println("\tError unmarshalling view response: ", unmarshalErr)
+				http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			} else {
 				// We got a valid response back and want to parse it out
 				processResponse(responseObj)
 			}
 			if verbose {
-				log.Printf("Request served to reverse proxy for %s\n", target[i])
-				log.Printf("Response obj: %v", responseObj)
+				log.Printf("\tRequest served to reverse proxy for %s\n", target)
+				log.Printf("\tResponse obj: %v", responseObj)
 			}
-			res.Body.Close() // Have to make sure to call this. 
+			resp.Body.Close() // Have to make sure to call this.
 		}
 	}
+}
+
+
+func buildProxy(proxy *httputil.ReverseProxy)  {
+
+	fmt.Println("Adding stuff")
+	proxy.ModifyResponse = func(r *http.Response) error {
+			// return nil
+			//
+			// purposefully return an error so ErrorHandler gets called
+			return errors.New("uh-oh")
+	}
+
+	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
+			fmt.Printf("error was: %+v", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(err.Error()))
+	}
+
+}
+
+func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
+	enableCors(&res)
+
+	if req.Method == "OPTIONS" {
+		//handlePreflight(res, req)
+		//enableCors(&res)
+		res.WriteHeader(http.StatusOK)
+		return
+	}
+		// Submit request
+		if verbose {	
+			log.Println("Submit request received")
+		}
+	requestPayload := parseSubmitRequestBody(req)
+	target := getSubmitProxyURL(requestPayload.LatLng)
+	logSubmitRequestPayload(requestPayload, target)
+	if target == ERROR_URL {
+		log.Printf("Error: Could not send request due to incorrect request body\n")
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			// Todo: check if this is valid. I put this as the response because we assume that if we can't find the url the client gave us a bad request
+		return
+	}
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	url, parseErr := url.Parse(target)
+	if parseErr != nil {
+		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
+
+
+
+	proxy := httputil.NewSingleHostReverseProxy(url)
+	buildProxy(proxy)
+	//fmt.Println(proxy)
+
+
+	req.URL.Host = url.Host
+	req.URL.Scheme = url.Scheme
+	req.Host = url.Host
+	if verbose {
+		for header, values := range req.Header {
+			for _, value := range values {
+				log.Printf("\tHeader: %s, val: %s \n", header, value)
+			}
+		}
+	}
+	//fmt.Println(res)
+	proxy.ServeHTTP(res, req)
+	//fmt.Println(val)
+	return
 }
 
 // Enable cors for response to pre-flight
@@ -453,7 +550,7 @@ func setupTimer(id uuid.UUID) {
 	timeWait := 4 * time.Second
 	time.AfterFunc(timeWait, func() {
 		if verbose {
-			fmt.Printf("Timeout triggered for %s", id.String())
+			fmt.Printf("Timeout triggered for %s \n", id.String())
 		}
 		if mutex, ok := requestMutexMap[id]; ok {
 			mutex.Lock()
@@ -470,6 +567,7 @@ func setupTimer(id uuid.UUID) {
 				if verbose {
 					fmt.Println("serving response after cleanup")
 				}
+				// TODO: Currently getting superfluous response.WriteHeader err due to not counting empty/error responses
 				serveResponseThenCleanup(id)
 			}
 		}
@@ -479,21 +577,75 @@ func setupTimer(id uuid.UUID) {
 	})
 }
 
-// Given a request send it to the appropriate url
-func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	//  handle pre-flight request from browser
+func serveCountRequest(res http.ResponseWriter, req *http.Request) {
+	// Todo: Handle preflight request
+	enableCors(&res)
+
+
 	if req.Method == "OPTIONS" {
-		fmt.Printf("Preflight request received\n")
-		enableCors(&res)
+		//enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
 
-	if strings.Contains(req.URL.Path, "view") {
+	requestPayload := parseCountRequestBody(req) 
+	if &requestPayload == nil {
+		// Do the appropriate response to client
+		if verbose {
+			log.Println("Invalid count request from client")
+		}
+		 
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	}
+  // Couldn't parse correctly.
+	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
+
+	if len(urlsMap) == 0 {
+		// If no urls were found then return error
+		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	}
+
+	// Note: below is the code for getting a single URL to forward our request to. 
+    	keys := make([]string, 0, len(urlsMap))
+        for k := range urlsMap {
+		keys = append(keys, k)
+	}
+
+	target:=keys[0] // Get first url
+	// Above is only a temporary solution
+
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	url, err := url.Parse(target)
+	if err != nil {
+		log.Printf("Invalid url: %s \n", target)
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	proxy := httputil.NewSingleHostReverseProxy(url)
+	buildProxy(proxy)
+
+	req.URL.Host = url.Host
+	req.URL.Scheme = url.Scheme
+	req.Host = url.Host
+	proxy.ServeHTTP(res,req)
+	return
+}
+
+// Given a request send it to the appropriate url
+func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	enableCors(&res)
+
+	if req.Method == "OPTIONS" {
+		//handlePreflight(res, req)
+		//enableCors(&res)
+		res.WriteHeader(http.StatusOK)
+		return
+	}
 		// View request
 		var tag = uuid.New()
+	
 		requestPayload := parseViewRequestBody(req)
-		urls := getViewProxyUrl(requestPayload.LatLng1, requestPayload.LatLng2)
+		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 		if verbose {
 			fmt.Printf("View request received\n")
 			fmt.Printf("Conditional url(s) attained\n")
@@ -503,19 +655,14 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 
 		var responseCount = 0
 
-		urlArray := make([]string, 0, len(urls))
 		for url := range urls {
-			if verbose {
-				fmt.Printf("URL serving to: %s \n", url)
-			}
 			// todo: make sure that this is returning the actual url and not index
-			logViewRequestPayload(requestPayload, url)
 			if url == ERROR_URL {
 				fmt.Println("Error: Could not send request due to incorrect request body")
+				http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
 			responseCount = responseCount + 1
-			urlArray = append(urlArray, url)
 		}
 		// Make all map entries for this uuid
 		mapMutex.Lock()
@@ -525,31 +672,17 @@ func (rh *requestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) 
 		requestMutexMap[tag] = sync.Mutex{}
 		mapMutex.Unlock()
 
-		serveReverseProxy(urlArray, res, req, tag)
-	} else if strings.Contains(req.URL.Path, "submit") {
-		// Submit request
-		log.Println("Submit request received")
-		requestPayload := parseSubmitRequestBody(req)
-		url := getSubmitProxyUrl(requestPayload.LatLng)
-		log.Println("Conditional url attained")
-		logSubmitRequestPayload(requestPayload, url)
-		if url == ERROR_URL {
-			log.Printf("Error: Could not send request due to incorrect request body\n")
-			return
-		}
-
-		urlArray := make([]string, 0, 1)
-		urlArray = append(urlArray, url)
-
-		serveReverseProxy(urlArray, res, req, uuid.Nil)
-	} else {
-		log.Printf("Unrecognized request received\n")
-	}
+		serveViewReverseProxy(urls, res, req, requestPayload, tag)
 }
 
 func checkMatches(resp *http.Response) bool {
 	var p []byte
 
+	if resp == nil {
+		fmt.Println("No Response received. Server may not be set up.")
+		return (false)
+	}
+	
 	if resp.ContentLength < 0 {
 		fmt.Println("No Data returned")
 		return (false)
@@ -559,6 +692,12 @@ func checkMatches(resp *http.Response) bool {
 	healthJson := string(p)
 	var healthResp []healthResponse
 	json.Unmarshal([]byte(healthJson), &healthResp)
+
+	// Added for testing
+	if len(healthResp) == 0 {
+		return (false)
+	}
+
 	if healthResp[0].Image_url == "https://comp413-places.s3.amazonaws.com/1572467590447health.jpg" {
 		//fmt.Println("Response OK")
 		return (true)
@@ -589,36 +728,38 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 			if pingA {
 				resp, err := client.Get(os.Getenv("A_CONDITION_URL") + "/health")
 
-				valid := checkMatches(resp)
-
-				if valid != true {
-					fmt.Println("Error in response JSON")
-					modifyMap(0)
-					pingA = false
-				}
-
+				// Modified for testing
 				//What should we do if we run into an error? Right now just printing it
 				if err != nil {
 					fmt.Println(err)
 					modifyMap(0)
 					pingA = false
-				}
+				} else {
+					valid := checkMatches(resp)
 
+					if valid != true {
+						fmt.Println("Error in response JSON during health check")
+						modifyMap(0)
+						pingA = false
+					}
+				}
 			}
 
 			if pingB {
 				resp, err2 := client.Get(os.Getenv("B_CONDITION_URL") + "/health")
-				valid := checkMatches(resp)
 
-				if valid != true {
-					fmt.Println("Error in response JSON")
-					modifyMap(1)
-					pingB = false
-				}
+				// Modified for testing
 				if err2 != nil {
 					fmt.Println(err2)
 					modifyMap(1)
 					pingB = false
+				} else {
+					valid := checkMatches(resp)
+					if valid != true {
+						fmt.Println("Error in response JSON during health check")
+						modifyMap(1)
+						pingB = false
+					}
 				}
 			}
 
@@ -629,6 +770,9 @@ func checkHealth(ticker *time.Ticker, done chan bool) {
 func processResponse(response ResponseObj) {
 	//b := []byte(response.ID)
 	var id, err = uuid.Parse(response.ID)
+	if verbose {
+		fmt.Printf("Processing response obj: %v \n", response)
+	}
 	if err != nil {
 		panic(err)
 	} else {
@@ -640,6 +784,7 @@ func processResponse(response ResponseObj) {
 			var responseEntries = response.Posts
 			responsesMap[id] = responsesMap[id] - 1 // decrement number of responses we're waiting on
 			var pl = queryMap[id]
+			fmt.Printf("Len response %d \n", len(responseEntries))
 			for _, responseEntry := range responseEntries {
 				pl.PushToCapacity(entriesToServe, &responseEntry)
 			}
@@ -649,11 +794,13 @@ func processResponse(response ResponseObj) {
 				}
 				readyToServe = true
 			}
+			queryMap[id]=pl
 			mutex.Unlock()
 			if readyToServe {
 				if verbose {
 					log.Printf("About to serve request for id: %s\n", id)
 				}
+				
 				serveResponseThenCleanup(id)
 			}
 		} else {
@@ -670,29 +817,38 @@ func getResponse(id uuid.UUID) PostList {
 
 func serveResponseThenCleanup(id uuid.UUID) {
 	if requestMutex, ok := requestMutexMap[id]; ok {
-		fmt.Println("found mutex")
 		requestMutex.Lock() // We lock here in case we have two or more responses arrive after timeout
 		// We don't want both responses triggering us to serve the response.
 		// This shouldn't be a problem if all responses arrive in a timely manner though
 		defer requestMutex.Unlock()
 
-		var responseEntries = getResponse(id)
+		// Get the response writer
+		var resWriter = responseWriterMap[id]
+		var pl = getResponse(id)
+		// Get the actual structs corresponding to the pointers in the list
+		responseEntries := make([]Post, len(pl))
+		for i, post := range pl {
+			responseEntries[i]=*post
+		}
 		// First marshal the response
-		var data, _ = json.Marshal(responseEntries)
+		var data, marshErr = json.Marshal(responseEntries)
+		if marshErr != nil {
+			// TODO: check if we want to return this response code
+			http.Error(resWriter, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		}
+
+		data_b := []byte(data)
 
 		if verbose {
-			fmt.Println(data)
+			fmt.Printf("Response list: %v \n", responseEntries)
+			//fmt.Printf("data: %s \n", string(data_b))
 		}
-		data_b := []byte(data)
-		fmt.Printf("data: %s \n", string(data))
-		// Get the response writer
-		//return
-		var resWriter = responseWriterMap[id]
+
 		// Set the appropriate things on the response writer
 		resWriter.Header().Set("Content-Type", "application/json")
 		//resWriter.Header().Set("Content-Length", string(1000))
 		resWriter.Header().Set("Content-Length", strconv.Itoa(len(data_b)))
-		resWriter.WriteHeader(http.StatusOK)
+		//resWriter.WriteHeader(http.StatusOK)
 		// todo: check which status code we want
 		if verbose {
 			fmt.Printf("Num bytes: %d \n", binary.Size(data_b))
@@ -704,8 +860,7 @@ func serveResponseThenCleanup(id uuid.UUID) {
 			log.Printf("Wrote: %d \n", i)
 		}
 		if writeErr != nil {
-			log.Println("Got err writing to response writer")
-			log.Println(writeErr)
+			log.Println("Error writing to response writer: ", writeErr)
 		}
 
 		// Clean up
@@ -760,22 +915,25 @@ func main() {
 		fmt.Printf("Map set up\n")
 	}
 
-	rh := &requestHandler{}
+	rh := &viewRequestHandler{}
 	// start server
 
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
-	http.Handle("/", gzHandleFunc)
+	//http.Handle("/view", rh)
+	http.Handle("/view", gzHandleFunc)
+	http.HandleFunc("/submit", serveSubmitReverseProxy)
+	http.HandleFunc("/count", serveCountRequest)
 
 	//http.HandleFunc("/", handleRequestAndRedirect)
 	//http.HandleFunc("/", testFixedResponse)
 	//Initialize ticker + channel + run in parallel
-
+	/*
 	ticker := time.NewTicker(5000 * time.Millisecond)
 	done := make(chan bool)
 	go checkHealth(ticker, done)
-
+	*/
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
 	}
