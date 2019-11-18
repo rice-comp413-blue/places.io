@@ -13,7 +13,6 @@ class MapView extends React.Component {
     constructor(props) {
         super(props);
         this.map = undefined;
-        this.layer = undefined;
         this.state = {
             currentZoom: 10
         };
@@ -51,7 +50,7 @@ class MapView extends React.Component {
         return (
             <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={this.mapCenter()} zoom={10}
                 style={{ height: '90vh', width: '100%' }}>
-                <TileLayer ref={(ref) => {this.layer = ref}}
+                <TileLayer
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
