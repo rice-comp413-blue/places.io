@@ -1,6 +1,6 @@
 {
   "cluster": "cluster1",
-  "serviceName": "em-proxy-ecs-service-discovery",
+  "serviceName": "proxy-ecs-service-discovery",
   "taskDefinition": "taskDefProxy",
   "serviceRegistries": [
     {
