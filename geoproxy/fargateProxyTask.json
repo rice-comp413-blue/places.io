@@ -1,11 +1,11 @@
 {
   "family": "taskDefProxy",
-  "executionRoleArn": "arn:aws:iam::936282279425:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::865745777952:role/ecsTaskExecutionRole",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
       "name": "proxy",
-      "image": "936282279425.dkr.ecr.us-east-2.amazonaws.com/proxy:latest",
+      "image": "865745777952.dkr.ecr.us-east-2.amazonaws.com/proxy:latest",
       "portMappings": [
         {
           "containerPort": 8080,

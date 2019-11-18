@@ -12,10 +12,10 @@ var upload = multer({
     metadata: function(req, file, cb) {
       cb(null, { originalName: file.originalname });
     },
-    key: function (req, file, cb) {
-      cb(null, Date.now() + file.originalname)
+    key: function(req, file, cb) {
+      cb(null, Date.now() + file.originalname);
     }
   })
-})
+});
 
-module.exports = upload
+module.exports = upload;

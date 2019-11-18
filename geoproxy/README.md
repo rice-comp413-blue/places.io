@@ -13,7 +13,7 @@ docker build -t [image name] .
 
 Then run the image:
 
-docker run -p [incoming port]:1330 [image name]
+```docker run -p [incoming port]:1330 [image name]```
 (you can also run with the -d flag, but I advise against it so that you can see the geoproxy's logs)
 
 Where you specify [image name]
@@ -47,3 +47,12 @@ Finally run the proxy with:
 ```
 
 By default the geoproxy will listen to port 1330. You can change the default port in the .env file. 
+
+## Tests
+
+Tests are located in the main_test.go file.
+
+To run tests, do the following in the same directory as the test file:
+```
+go test -v
+```

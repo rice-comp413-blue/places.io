@@ -6,9 +6,7 @@ import CardHeader from '@material-ui/core/CardHeader';
 import CardMedia from '@material-ui/core/CardMedia';
 import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
-import Avatar from '@material-ui/core/Avatar';
 import Typography from '@material-ui/core/Typography';
-import { red } from '@material-ui/core/colors';
 
 const useStyles = makeStyles(() => ({
   card: {
@@ -17,7 +15,7 @@ const useStyles = makeStyles(() => ({
     borderWidth: '0.5px',
     boxShadow: '3px 3px 5px grey',
     borderColor: 'grey',
-    margin: '1.5em'
+    marginBottom: '1em'
   },
   media: {
     height: 0,
@@ -44,6 +42,7 @@ const useStyles = makeStyles(() => ({
 
 export default function MediaCard(props) {
   const classes = useStyles();
+  // console.log(props.story)
 
   return (
     <Card className={classes.card}>
@@ -55,19 +54,19 @@ export default function MediaCard(props) {
         }
         subheader={
           <div className={classes.subHeader}>
-            {props.story.timestamp.toLocaleString('en-US')}
+            {new Date(props.story.timestamp).toLocaleString('en-US')}
           </div>}
       />
-      {props.story.imageURL !== '' ?
+      {props.story.image_url !== null ?
         <CardMedia
           className={classes.media}
-          image={props.story.imageURL}
+          image={props.story.image_url}
           title="Story Image"
         /> :
         null
       }
       <CardContent>
-        <Typography variant="body2" color="textSecondary" component="p">
+        <Typography variant="body2" color="textSecondary" component="div">
           <div className={classes.text}>{props.story.text}</div>
         </Typography>
       </CardContent>

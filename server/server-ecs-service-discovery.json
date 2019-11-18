@@ -10,8 +10,13 @@
   "launchType": "FARGATE",
   "networkConfiguration": {
     "awsvpcConfiguration": {
-      "securityGroups": [ "sg-06ffc91cf4e8d1c79"],
-      "subnets": [ "subnet-02056aa8e15144e38", "subnet-0306dcd1f5b985260" ]
+      "securityGroups": [
+        "sg-06ffc91cf4e8d1c79"
+      ],
+      "subnets": [
+        "subnet-000d455bb9e1eac23",
+        "subnet-0e17a0f9e9f6f78d9"
+      ]
     }
   },
   "desiredCount": 2
