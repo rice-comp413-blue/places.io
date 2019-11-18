@@ -1,6 +1,14 @@
 package main
 
+//Notes:
+//Some errors from proxy.ServeHTTP cannot be caught and modified bc of how the function is written.
+
+//Resources:
+//https://www.integralist.co.uk/posts/golang-reverse-proxy/
+//https://hackernoon.com/writing-a-reverse-proxy-in-just-one-line-with-go-c1edfa78c84b
+
 import (
+	"errors"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -424,20 +432,22 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 			log.Printf("\tServing request to %s: %s", target, string(newReq))
 		}
 
-		res, err := http.Post(url.String(), "application/json", newReqBody)
+		resp, err := http.Post(url.String(), "application/json", newReqBody)
 		if err != nil {
 			log.Printf("\tError when sending request: %v", err)
 			processResponse(getNullResponseObj(id.String()))
 		} else {
 			var responseObj ResponseObj
-			body, bodyErr := ioutil.ReadAll(res.Body)
+			body, bodyErr := ioutil.ReadAll(resp.Body)
 			if bodyErr != nil {
 				// Do we want to stop the program here
 				log.Fatal("\tError reading view response: ", bodyErr)
+				http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 
 			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
 				log.Println("\tError unmarshalling view response: ", unmarshalErr)
+				http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			} else {
 				// We got a valid response back and want to parse it out
 				processResponse(responseObj)
@@ -446,14 +456,37 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 				log.Printf("\tRequest served to reverse proxy for %s\n", target)
 				log.Printf("\tResponse obj: %v", responseObj)
 			}
-			res.Body.Close() // Have to make sure to call this.
+			resp.Body.Close() // Have to make sure to call this.
 		}
 	}
 }
 
+
+func buildProxy(proxy *httputil.ReverseProxy)  {
+
+	fmt.Println("Adding stuff")
+	proxy.ModifyResponse = func(r *http.Response) error {
+			// return nil
+			//
+			// purposefully return an error so ErrorHandler gets called
+			return errors.New("uh-oh")
+	}
+
+	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
+			fmt.Printf("error was: %+v", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(err.Error()))
+	}
+
+}
+
 func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
+	enableCors(&res)
+
 	if req.Method == "OPTIONS" {
-		handlePreflight(res, req)
+		//handlePreflight(res, req)
+		//enableCors(&res)
+		res.WriteHeader(http.StatusOK)
 		return
 	}
 		// Submit request
@@ -474,7 +507,14 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 	if parseErr != nil {
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
+
+
+
 	proxy := httputil.NewSingleHostReverseProxy(url)
+	buildProxy(proxy)
+	//fmt.Println(proxy)
+
+
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
 	req.Host = url.Host
@@ -485,7 +525,9 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
+	//fmt.Println(res)
 	proxy.ServeHTTP(res, req)
+	//fmt.Println(val)
 	return
 }
 
@@ -533,8 +575,11 @@ func setupTimer(id uuid.UUID) {
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	// Todo: Handle preflight request
+	enableCors(&res)
+
+
 	if req.Method == "OPTIONS" {
-		enableCors(&res)
+		//enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
@@ -573,6 +618,8 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	proxy := httputil.NewSingleHostReverseProxy(url)
+	buildProxy(proxy)
+
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
 	req.Host = url.Host
@@ -582,8 +629,12 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 
 // Given a request send it to the appropriate url
 func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	enableCors(&res)
+
 	if req.Method == "OPTIONS" {
-		handlePreflight(res, req)
+		//handlePreflight(res, req)
+		//enableCors(&res)
+		res.WriteHeader(http.StatusOK)
 		return
 	}
 		// View request
