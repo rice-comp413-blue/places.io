@@ -1,12 +1,7 @@
-const { Pool } = require("pg");
-const s3config = require("./s3config.json");
-const secrets = require("../../secrets.json");
+const {Pool} = require('pg');
+const secrets = require("../secrets.json");
 
-const pool = new Pool({
-  ...s3config,
-  user: secrets.AWS.username,
-  password: secrets.AWS.password
-});
+const pool = new Pool(secrets.AWS.dbAuth);
 
 pool.connect(function(err) {
   if (err) throw err;
