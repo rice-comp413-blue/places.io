@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"strconv"
     aws "github.com/aws/aws-sdk-go/aws"
     session "github.com/aws/aws-sdk-go/aws/session"
     servicediscovery "github.com/aws/aws-sdk-go/service/servicediscovery"
@@ -33,6 +32,8 @@ import (
 )
 
 var verbose = false
+var instances []*servicediscovery.HttpInstanceSummary
+
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -895,9 +896,10 @@ func check_service() {
 	})
 	err := req.Send()
 	if err == nil {
-		fmt.Println(res)
+		fmt.Println(res.Instances)
+		instances = res.Instances
 	} else {
-		fmt.Println("Error")
+		fmt.Println("Error getting instances.")
 		fmt.Println(err)
 	}
 }
