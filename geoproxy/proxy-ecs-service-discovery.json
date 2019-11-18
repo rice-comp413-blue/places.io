@@ -1,10 +1,10 @@
 {
-  "cluster": "placesCluster",
+  "cluster": "cluster1",
   "serviceName": "proxy-ecs-service-discovery",
   "taskDefinition": "taskDefProxy",
   "serviceRegistries": [
     {
-      "registryArn": "arn:aws:servicediscovery:region:aws_account_id:service/srv-lv33rajjprs7unxz"
+      "registryArn": "arn:aws:servicediscovery:region:aws_account_id:service/srv-dhuq4qoelvbfxuy3"
     }
   ],
   "launchType": "FARGATE",
@@ -16,7 +16,8 @@
       "subnets": [
         "subnet-0a6f4a61e91912c4a",
         "subnet-0952f8bcc35d6e4c3"
-      ]
+      ],
+      "assignPublicIp": "ENABLED"
     }
   },
   "desiredCount": 1
