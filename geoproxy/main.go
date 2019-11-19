@@ -200,7 +200,7 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
-		panic(err)
+		return nil	
 	}
 
 	// Because go lang is a pain in the ass if you read the body then any subsequent calls
@@ -213,6 +213,10 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 // Parse the view requests body
 func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
+
+	if decoder == nil {
+		http.Error(res, "Bad request from client", http.StatusBadRequest)
+	}
 
 	var requestPayload viewRequestPayloadStruct
 	err := decoder.Decode(&requestPayload)
