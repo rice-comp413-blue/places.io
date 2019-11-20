@@ -10,7 +10,8 @@ class Sidebar extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            pageCount: null
+            pageCount: null,
+            pageNum: 0
         };
     }
 
@@ -32,6 +33,8 @@ class Sidebar extends React.Component {
             RequestController.getCount(upperLeft, bottomRight)
                 .then(res => { this.setState({ pageCount: Math.ceil(res.data.count / PAGE_LIMIT) }) })
                 .catch(err => console.log(err));
+
+            this.setState({ pageNum: 0 });
         }
     }
 
@@ -40,6 +43,7 @@ class Sidebar extends React.Component {
         RequestController.view(this.props.upperLeft, this.props.bottomRight, data.selected * PAGE_LIMIT, PAGE_LIMIT)
             .then(res => { this.props.updateCurrentDataPoints(res.data.entries) })
             .catch(err => console.log(err));
+        this.setState({ pageNum: data.selected });
 
     }
 
@@ -64,7 +68,7 @@ class Sidebar extends React.Component {
                     }} // purple400
                 />
                 {this.props.mode === 'view' ?
-                    <Feed className="feed" elements={this.props.feed} onStoryClick={this.props.onStoryClick} selectedStory={this.props.selectedStory}/> :
+                    <Feed className="feed" elements={this.props.feed} onStoryClick={this.props.onStoryClick} selectedStory={this.props.selectedStory} /> :
                     <Form
                         updateLatLngFunc={this.props.updateLatLngFunc.bind(this)}
                         curLatLng={this.props.curLatLng}></Form>
@@ -73,6 +77,7 @@ class Sidebar extends React.Component {
                 {this.props.mode === 'view' && this.state.pageCount && this.props.feed.length > 0 ?
                     <div className="paginate-container">
                         <ReactPaginate
+                            forcePage={this.state.pageNum}
                             previousLabel={'previous'}
                             nextLabel={'next'}
                             breakLabel={'...'}
