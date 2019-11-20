@@ -88,6 +88,9 @@ type submitRequestPayloadStruct struct {
 type viewRequestHandler struct {
 }
 
+type singleViewRequestHandler struct {
+}
+
 type healthResponse struct {
 	Image_url string
 	Storyid   string
@@ -412,7 +415,10 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 	// Edit request body to include id
 	reqPayload.ID = id.String()
 
-	fmt.Printf("%v \n", reqPayload)
+	if verbose {	
+		fmt.Printf("%v \n", reqPayload)
+	}
+
 	setupTimer(id)
 	// Send to other servers for view request
 	for target, coordBox := range targets {
@@ -470,10 +476,8 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 
 func buildProxy(proxy *httputil.ReverseProxy)  {
 
-	fmt.Println("Adding stuff")
 	proxy.ModifyResponse = func(r *http.Response) error {
 			// return nil
-			//
 			// purposefully return an error so ErrorHandler gets called
 			return errors.New("uh-oh")
 	}
@@ -505,25 +509,22 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 	if target == ERROR_URL {
 		log.Printf("Error: Could not send request due to incorrect request body\n")
 		http.Error(res, "Client sent incorrect submit request body", http.StatusBadRequest)
-			// Todo: check if this is valid. I put this as the response because we assume that if we can't find the url the client gave us a bad request
 		return
 	}
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	url, parseErr := url.Parse(target)
+	targ_url, parseErr := url.Parse(target)
 	if parseErr != nil {
 		http.Error(res, "Error parsing url", http.StatusInternalServerError)
 	}
 
-
-
-	proxy := httputil.NewSingleHostReverseProxy(url)
+	proxy := httputil.NewSingleHostReverseProxy(targ_url)
 	buildProxy(proxy)
 	//fmt.Println(proxy)
 
-
-	req.URL.Host = url.Host
-	req.URL.Scheme = url.Scheme
-	req.Host = url.Host
+	req.URL.Host = targ_url.Host
+	req.URL.Scheme = targ_url.Scheme
+	req.Host = targ_url.Host
+	
 	if verbose {
 		for header, values := range req.Header {
 			for _, value := range values {
@@ -631,6 +632,42 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	req.Host = url.Host
 	proxy.ServeHTTP(res,req)
 	return
+}
+
+func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	// Created this method for when we want to only route to a single server. 
+	enableCors(&res)
+
+	if req.Method == "OPTIONS" {
+		res.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	requestPayload := parseViewRequestBody(req)
+
+	// Hackish solution, but here we get the midpoint to then fetch the corresponding server with the same approach we do with submit requests. 
+	var midPoint []float64
+	latVal := (requestPayload.LatLng1[0] + requestPayload.LatLng2[0]) / 2
+	lngVal := (requestPayload.LatLng1[1] + requestPayload.LatLng2[1]) / 2
+	midPoint = append(midPoint, latVal)
+	midPoint = append(midPoint, lngVal)
+	
+	target := getSubmitProxyURL(midPoint)
+
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	targ_url, parseErr := url.Parse(target)
+	if parseErr != nil {
+		http.Error(res, "Error parsing url", http.StatusInternalServerError)
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(targ_url)
+	buildProxy(proxy)
+	//fmt.Println(proxy)
+
+	req.URL.Host = targ_url.Host
+	req.URL.Scheme = targ_url.Scheme
+	req.Host = targ_url.Host
+	proxy.ServeHTTP(res, req)
 }
 
 // Given a request send it to the appropriate url
@@ -895,9 +932,9 @@ func main() {
 		fmt.Printf("Map set up\n")
 	}
 
-	rh := &viewRequestHandler{}
+	rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
+	//rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
 	// start server
-
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
