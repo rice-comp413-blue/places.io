@@ -21,6 +21,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -199,8 +200,8 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 	// Read body to buffer
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		return nil	
+		log.Printf("Error reading body: %v \n", err)
+		return nil
 	}
 
 	// Because go lang is a pain in the ass if you read the body then any subsequent calls
@@ -215,9 +216,8 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
 
 	if decoder == nil {
-		fmt.Println("Creating body decoder failed")
-		var v viewRequestPayloadStruct 
-		return v
+		fmt.Println("Creating view body decoder failed")
+		return viewRequestPayloadStruct{}
 	}
 
 	var requestPayload viewRequestPayloadStruct
@@ -225,6 +225,7 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 
 	if err != nil {
 		fmt.Println("Error decoding into view request payload")
+		return viewRequestPayloadStruct{}
 	}
 
 	if verbose {
@@ -238,11 +239,17 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 func parseCountRequestBody(request *http.Request) countRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
 
+	if decoder == nil {
+		fmt.Println("Creating count body decoder failed")
+		return countRequestPayloadStruct{}
+	}
+
 	var requestPayload countRequestPayloadStruct
 	err := decoder.Decode(&requestPayload)
 
 	if err != nil {
 		fmt.Println("Error creating decoder for count request payload")
+		return countRequestPayloadStruct{}
 	}
 	if verbose {
 		fmt.Println("Parsed count request payload:")
@@ -271,11 +278,13 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	latVal, err := strconv.ParseFloat(lat, 64)
 	if err != nil {
 		fmt.Println("Couldn't parse latitude value in submit request.")
+		return submitRequestPayloadStruct{}
 	}
 	LatLng = append(LatLng, latVal)
 	lngVal, err := strconv.ParseFloat(lng, 64)
 	if err != nil {
 		fmt.Println("Couldn't parse longitude value in submit request.")
+		return submitRequestPayloadStruct{}
 	}
 	LatLng = append(LatLng, lngVal)
 
@@ -355,9 +364,7 @@ func getBoundingBoxURLs(rawCoord1 []float64, rawCoord2 []float64) map[string]Coo
 	}
 
 	for latRange := range coordBoxToServer {
-		//fmt.Printf("%v",latRange)
 		if rangesOverlap(bottomRight.Lat, topLeft.Lat, latRange) {
-			//fmt.Printf("%v",latRange)
 			for lngRange := range coordBoxToServer[latRange] {
 				if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange) {
 					// Check if we have already added url
@@ -460,7 +467,7 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 			}
 			if verbose {
 				log.Printf("\tRequest served to reverse proxy for %s\n", target)
-				log.Printf("\tResponse obj: %v", responseObj)
+				log.Printf("\tResponse obj: %v \n", responseObj)
 			}
 			resp.Body.Close() // Have to make sure to call this.
 		}
@@ -479,7 +486,7 @@ func buildProxy(proxy *httputil.ReverseProxy)  {
 	}
 
 	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
-			fmt.Printf("error was: %+v", err)
+			fmt.Printf("error was: %+v \n", err)
 			rw.WriteHeader(http.StatusInternalServerError)
 			rw.Write([]byte(err.Error()))
 	}
@@ -496,15 +503,22 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 		// Submit request
-		if verbose {	
-			log.Println("Submit request received")
-		}
+	if verbose {	
+		log.Println("Submit request received")
+	}
+
 	requestPayload := parseSubmitRequestBody(req)
+	if reflect.DeepEqual(requestPayload, (submitRequestPayloadStruct{})) {
+		// If we get empty struct then something went wrong
+		http.Error(res, "Client sent incorrect submit request body", http.StatusBadRequest)
+		return
+	}
+
 	target := getSubmitProxyURL(requestPayload.LatLng)
 	logSubmitRequestPayload(requestPayload, target)
 	if target == ERROR_URL {
 		log.Printf("Error: Could not send request due to incorrect request body\n")
-		http.Error(res, "Client sent incorrect submit request body", http.StatusBadRequest)
+		http.Error(res, "Client queried for invalid coordinate", http.StatusBadRequest)
 			// Todo: check if this is valid. I put this as the response because we assume that if we can't find the url the client gave us a bad request
 		return
 	}
@@ -514,12 +528,8 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Error parsing url", http.StatusInternalServerError)
 	}
 
-
-
 	proxy := httputil.NewSingleHostReverseProxy(url)
 	buildProxy(proxy)
-	//fmt.Println(proxy)
-
 
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
@@ -531,9 +541,7 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
-	//fmt.Println(res)
 	proxy.ServeHTTP(res, req)
-	//fmt.Println(val)
 	return
 }
 
@@ -561,7 +569,7 @@ func setupTimer(id uuid.UUID) {
 				if numRequests > 0 {
 					// Note, this should always be true if the request hasn't been serviced yet. maybe delete if statement
 					// Let's just send what we have
-					fmt.Printf("Got all responses back for request w/ ID: %s", id.String())
+					fmt.Printf("Got all responses back for request w/ ID: %s \n", id.String())
 					readyToServe = true
 				}
 			}
@@ -592,14 +600,12 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	}
 
 	requestPayload := parseCountRequestBody(req) 
-	if &requestPayload == nil {
-		// Do the appropriate response to client
-		if verbose {
-			log.Println("Invalid count request from client")
-		}
-		 
-		http.Error(res, "Client sent invalid count request body", http.StatusBadRequest)
+	if reflect.DeepEqual(requestPayload, (countRequestPayloadStruct{})) {
+		// If we get empty struct then something went wrong
+		http.Error(res, "Client sent incorrect count request body", http.StatusBadRequest)
+		return
 	}
+
   // Couldn't parse correctly.
 	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 
@@ -648,7 +654,18 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		var tag = uuid.New()
 	
 		requestPayload := parseViewRequestBody(req)
+	
+	if reflect.DeepEqual(requestPayload, (viewRequestPayloadStruct{})) {
+		// If we get empty struct then something went wrong
+		http.Error(res, "Client sent incorrect view request body", http.StatusBadRequest)
+		return
+	}
 		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
+		if len(urls) == 0 {
+			http.Error(res, "Client's queried bounding box is invalid", http.StatusBadRequest)
+			return
+		}
+		
 		if verbose {
 			fmt.Printf("View request received\n")
 			fmt.Printf("Conditional url(s) attained\n")
@@ -777,7 +794,7 @@ func processResponse(response ResponseObj) {
 		fmt.Printf("Processing response obj: %v \n", response)
 	}
 	if err != nil {
-		fmt.Println()
+		fmt.Println("Error parsing the response's id field into UUID")
 	} else {
 		// Concurrent reads of the map for getting the mutex are alright
 		if mutex, ok := requestMutexMap[id]; ok {
@@ -808,14 +825,10 @@ func processResponse(response ResponseObj) {
 			}
 		} else {
 			if verbose {
-				log.Printf("Response for tag %s came after cleanup", id)
+				log.Printf("Response for tag %s came after cleanup.", id)
 			}
 		}
 	}
-}
-
-func getResponse(id uuid.UUID) PostList {
-	return queryMap[id]
 }
 
 func serveResponseThenCleanup(id uuid.UUID) {
@@ -827,7 +840,7 @@ func serveResponseThenCleanup(id uuid.UUID) {
 
 		// Get the response writer
 		var resWriter = responseWriterMap[id]
-		var pl = getResponse(id)
+		if pl, ok := queryMap[id]; ok {
 		// Get the actual structs corresponding to the pointers in the list
 		responseEntries := make([]Post, len(pl))
 		for i, post := range pl {
@@ -867,6 +880,14 @@ func serveResponseThenCleanup(id uuid.UUID) {
 
 		// Clean up
 		multiServerMapCleanup(id)
+		} else {
+			// If the id isn't present then we somehow deleted it from the map before servicing the request. 
+			if verbose { 
+				fmt.Printf("response for request with id %s was removed from the map before servicing the request \n", id.String())
+			}
+			http.Error(resWriter, "Response was deleted from proxy memory before being served", http.StatusBadGateway)
+			return
+		}
 	}
 }
 
@@ -878,7 +899,7 @@ func multiServerMapCleanup(id uuid.UUID) {
 	delete(queryMap, id)
 	delete(responseWriterMap, id)
 	if verbose {
-		log.Printf("Cleaned up maps for id: %s", id.String())
+		log.Printf("Cleaned up maps for id: %s \n", id.String())
 		//log.Println("New map", queryMap)
 	}
 	mapMutex.Unlock()
