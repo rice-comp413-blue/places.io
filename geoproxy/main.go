@@ -200,7 +200,7 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
-		panic(err)
+		return nil	
 	}
 
 	// Because go lang is a pain in the ass if you read the body then any subsequent calls
@@ -213,6 +213,10 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 // Parse the view requests body
 func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
+
+	if decoder == nil {
+		http.Error(res, "Bad request from client", http.StatusBadRequest)
+	}
 
 	var requestPayload viewRequestPayloadStruct
 	err := decoder.Decode(&requestPayload)
@@ -442,12 +446,12 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 			if bodyErr != nil {
 				// Do we want to stop the program here
 				log.Fatal("\tError reading view response: ", bodyErr)
-				http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				http.Error(res, "Couldn't read server response body.", http.StatusInternalServerError)
 			}
 
 			if unmarshalErr := json.Unmarshal([]byte(body), &responseObj); unmarshalErr != nil {
 				log.Println("\tError unmarshalling view response: ", unmarshalErr)
-				http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				http.Error(res, "Received invalid response from server", http.StatusInternalServerError)
 			} else {
 				// We got a valid response back and want to parse it out
 				processResponse(responseObj)
@@ -498,14 +502,14 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 	logSubmitRequestPayload(requestPayload, target)
 	if target == ERROR_URL {
 		log.Printf("Error: Could not send request due to incorrect request body\n")
-		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(res, "Client sent incorrect submit request body", http.StatusBadRequest)
 			// Todo: check if this is valid. I put this as the response because we assume that if we can't find the url the client gave us a bad request
 		return
 	}
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	url, parseErr := url.Parse(target)
 	if parseErr != nil {
-		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(res, "Error parsing url", http.StatusInternalServerError)
 	}
 
 
@@ -591,14 +595,14 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 			log.Println("Invalid count request from client")
 		}
 		 
-		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		http.Error(res, "Client sent invalid count request body", http.StatusBadRequest)
 	}
   // Couldn't parse correctly.
 	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 
 	if len(urlsMap) == 0 {
-		// If no urls were found then return error
-		http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		// If no urls were found then return error. We assume that if no urls were found then the bounding box was invalid (although the request body itself was valid)
+		http.Error(res, "Invalid bounding box queried", http.StatusBadRequest)
 	}
 
 	// Note: below is the code for getting a single URL to forward our request to. 
@@ -655,7 +659,7 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 			// todo: make sure that this is returning the actual url and not index
 			if url == ERROR_URL {
 				fmt.Println("Error: Could not send request due to incorrect request body")
-				http.Error(res, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+				http.Error(res, "Invalid bounding box queried", http.StatusBadRequest)
 				return
 			}
 			responseCount = responseCount + 1
@@ -830,7 +834,7 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		var data, marshErr = json.Marshal(responseEntries)
 		if marshErr != nil {
 			// TODO: check if we want to return this response code
-			http.Error(resWriter, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+			http.Error(resWriter, "Received bad response for view request from server", http.StatusBadGateway)
 		}
 
 		data_b := []byte(data)
