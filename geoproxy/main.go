@@ -224,7 +224,7 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	err := decoder.Decode(&requestPayload)
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Error decoding into view request payload")
 	}
 
 	if verbose {
@@ -242,7 +242,7 @@ func parseCountRequestBody(request *http.Request) countRequestPayloadStruct {
 	err := decoder.Decode(&requestPayload)
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Error creating decoder for count request payload")
 	}
 	if verbose {
 		fmt.Println("Parsed count request payload:")
@@ -561,6 +561,7 @@ func setupTimer(id uuid.UUID) {
 				if numRequests > 0 {
 					// Note, this should always be true if the request hasn't been serviced yet. maybe delete if statement
 					// Let's just send what we have
+					fmt.Printf("Got all responses back for request w/ ID: %s", id.String())
 					readyToServe = true
 				}
 			}
@@ -840,10 +841,9 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		}
 
 		data_b := []byte(data)
-
+		
 		if verbose {
-			fmt.Printf("Response list: %v \n", responseEntries)
-			//fmt.Printf("data: %s \n", string(data_b))
+			fmt.Printf("Serving response body: %s \n", string(data_b))
 		}
 
 		// Set the appropriate things on the response writer
@@ -859,7 +859,7 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		// serve the request to the client
 		i, writeErr := resWriter.Write(data_b)
 		if verbose {
-			log.Printf("Wrote: %d \n", i)
+			log.Printf("Wrote: %d bytes to the client \n", i)
 		}
 		if writeErr != nil {
 			log.Println("Error writing to response writer: ", writeErr)
@@ -915,6 +915,7 @@ func main() {
 	go checkHealth(ticker, done)
 	*/
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
+		fmt.Println("Error when calling listen and serve")
 		panic(err)
 	}
 }
