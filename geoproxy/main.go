@@ -215,7 +215,9 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
 
 	if decoder == nil {
-		http.Error(res, "Bad request from client", http.StatusBadRequest)
+		fmt.Println("Creating body decoder failed")
+		var v viewRequestPayloadStruct 
+		return v
 	}
 
 	var requestPayload viewRequestPayloadStruct
