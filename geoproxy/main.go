@@ -215,7 +215,9 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 	decoder := requestBodyDecoder(request)
 
 	if decoder == nil {
-		http.Error(res, "Bad request from client", http.StatusBadRequest)
+		fmt.Println("Creating body decoder failed")
+		var v viewRequestPayloadStruct 
+		return v
 	}
 
 	var requestPayload viewRequestPayloadStruct
@@ -268,12 +270,12 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	lng := request.FormValue("lng")
 	latVal, err := strconv.ParseFloat(lat, 64)
 	if err != nil {
-		panic(err)
+		fmt.Println("Couldn't parse latitude value in submit request.")
 	}
 	LatLng = append(LatLng, latVal)
 	lngVal, err := strconv.ParseFloat(lng, 64)
 	if err != nil {
-		panic(err)
+		fmt.Println("Couldn't parse longitude value in submit request.")
 	}
 	LatLng = append(LatLng, lngVal)
 
@@ -774,7 +776,7 @@ func processResponse(response ResponseObj) {
 		fmt.Printf("Processing response obj: %v \n", response)
 	}
 	if err != nil {
-		panic(err)
+		fmt.Println()
 	} else {
 		// Concurrent reads of the map for getting the mutex are alright
 		if mutex, ok := requestMutexMap[id]; ok {
