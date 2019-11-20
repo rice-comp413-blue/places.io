@@ -14,7 +14,6 @@
         "sg-09e263941f065c41d"
       ],
       "subnets": [
-        "subnet-0e17a0f9e9f6f78d9",
         "subnet-0952f8bcc35d6e4c3"
       ],
       "assignPublicIp": "ENABLED"

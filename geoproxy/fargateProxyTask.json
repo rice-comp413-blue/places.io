@@ -13,13 +13,21 @@
           "protocol": "tcp"
         }
       ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+            "awslogs-group": "proxy",
+            "awslogs-region": "us-east-2",
+            "awslogs-stream-prefix": "log-stream"
+        }
+      },
       "essential": true,
       "entryPoint": [
         "sh",
         "-c"
       ],
       "command": [
-        "./geoproxy"
+        "./geoproxy -v"
       ]
     }
   ],
