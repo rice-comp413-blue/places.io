@@ -10,6 +10,7 @@ WORKDIR /app
 
 # Install gzip dependency
 RUN go get -v github.com/NYTimes/gziphandler
+RUN go get -v github.com/google/uuid
 
 # Copy everything from the current directory to the Working Directory inside the container
 COPY . .
