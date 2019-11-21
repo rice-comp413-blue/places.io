@@ -54,41 +54,41 @@ class MapView extends React.Component {
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-            
+
                 {this.props.markers.filter((b) => b.storyid !== this.props.selectedStory).map(marker => {
                     return (
                         <Marker
                             key={marker.storyid}
                             position={[marker.lat, marker.long]}
                             onClick={() => this.props.onStoryClick(marker.storyid)}
-                            >   
+                        >
                             <Popup>
                                 <h5>Description</h5><br /> {marker.text}
-                                {marker.image_url ? <img src={marker.image_url} style={{height:'100px'}}/> : <p className="missing">No image attached.</p>}
+                                {marker.image_url ? <img alt="Story" src={marker.image_url} style={{ height: '100px' }} /> : <p className="missing">No image attached.</p>}
                                 <p>Story Id: {marker.storyid}</p>
                             </Popup>
                         </Marker>
                     )
 
                 })}
-                
+
                 {/*The active marker needs to be placed last in order for it to show. There should only be 1.*/}
 
                 {this.props.markers.filter((b) => b.storyid === this.props.selectedStory).map(marker => {
                     return (
                         <ActiveMarker
                             key={marker.storyid}
-                            position={[marker.lat, marker.long]}>   
+                            position={[marker.lat, marker.long]}>
                             <Popup>
-                                <h5>Description</h5><br /> {marker.text}
-                                {marker.image_url ? <img src={marker.image_url} style={{height:'100px'}}/> : <p className="missing">No image attached.</p>}
+                                <div>{marker.text} </div><br />
+                                {marker.image_url ? <img alt="Story" src={marker.image_url} style={{ height: '100px' }} /> : <p className="missing">No image attached.</p>}
                                 <p>Story Id: {marker.storyid}</p>
                             </Popup>
                         </ActiveMarker>
                     )
 
                 })}
-                
+
                 {this.props.mode === 'view' && this.state.currentZoom > 6 ?
                     <Control position="topright" >
                         <Button onClick={this.handleViewClick.bind(this)}>
@@ -102,11 +102,11 @@ class MapView extends React.Component {
 }
 const ActiveMarker = props => {
     const initMarker = ref => {
-      if (ref) {
-        ref.leafletElement.openPopup()
-      }
+        if (ref) {
+            ref.leafletElement.openPopup()
+        }
     }
-    return <Marker ref={initMarker} {...props}/>
- }
+    return <Marker ref={initMarker} {...props} />
+}
 
 export default MapView;
