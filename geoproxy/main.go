@@ -24,11 +24,16 @@ import (
 	"strconv"
 	"sync"
 	"time"
+    aws "github.com/aws/aws-sdk-go/aws"
+    session "github.com/aws/aws-sdk-go/aws/session"
+    servicediscovery "github.com/aws/aws-sdk-go/service/servicediscovery"
 	"github.com/NYTimes/gziphandler"
 	uuid "github.com/google/uuid"
 )
 
 var verbose = false
+var instances []*servicediscovery.HttpInstanceSummary
+
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -921,7 +926,30 @@ func multiServerMapCleanup(id uuid.UUID) {
 	mapMutex.Unlock()
 }
 
+func check_service() {
+	fmt.Println("Check service.")
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+        SharedConfigState: session.SharedConfigEnable,
+    }))
+    svc := servicediscovery.New(sess, aws.NewConfig().WithRegion("us-east-2"))
+    req, res := svc.DiscoverInstancesRequest(&servicediscovery.DiscoverInstancesInput{
+		HealthStatus:  aws.String(servicediscovery.HealthStatusFilterHealthy),
+		NamespaceName: aws.String("dns-namespace1"),
+		ServiceName:   aws.String("sd-service1"),
+	})
+	err := req.Send()
+	if err == nil {
+		fmt.Println(res.Instances)
+		instances = res.Instances
+	} else {
+		fmt.Println("Error getting instances.")
+		fmt.Println(err)
+	}
+}
+
 func main() {
+	check_service()
+
 	// Log setup values
 	logSetup()
 	setupMap()
