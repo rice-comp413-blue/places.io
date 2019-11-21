@@ -8,7 +8,7 @@ package main
 //https://hackernoon.com/writing-a-reverse-proxy-in-just-one-line-with-go-c1edfa78c84b
 
 import (
-	"errors"
+	//"errors"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -61,6 +61,10 @@ type Post struct {
 type ResponseObj struct {
 	Posts []Post `json:"entries"`
 	ID    string `json:"id"`
+}
+
+type ViewResponseObj struct {
+	Posts []Post `json:"entries"`
 }
 
 // View request passes top-left and bottom-right coords
@@ -267,6 +271,12 @@ func getPosts(body []byte) ([]Post, error) {
 
 // Parse the submit requests body
 func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
+	var bodyBytes []byte
+	if request.Body != nil {
+  		bodyBytes, _ = ioutil.ReadAll(request.Body)
+	}
+	request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	request.ParseMultipartForm(0)
 	var LatLng []float64
 	lat := request.FormValue("lat")
@@ -284,6 +294,14 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 
 	var requestPayload submitRequestPayloadStruct
 	requestPayload.LatLng = LatLng
+
+	request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	bodyString := string(bodyBytes)
+	if verbose {
+		log.Println("Submit Body: ")
+		log.Println(bodyString)
+	}
 
 	return requestPayload
 }
@@ -476,11 +494,11 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 
 func buildProxy(proxy *httputil.ReverseProxy)  {
 
-	proxy.ModifyResponse = func(r *http.Response) error {
-			// return nil
-			// purposefully return an error so ErrorHandler gets called
-			return errors.New("uh-oh")
-	}
+	// proxy.ModifyResponse = func(r *http.Response) error {
+	// 		// return nil
+	// 		// purposefully return an error so ErrorHandler gets called
+	// 		return errors.New("uh-oh")
+	// }
 
 	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
 			fmt.Printf("error was: %+v", err)
@@ -869,8 +887,11 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		for i, post := range pl {
 			responseEntries[i]=*post
 		}
+
+		viewResponse := ViewResponseObj{responseEntries}
+
 		// First marshal the response
-		var data, marshErr = json.Marshal(responseEntries)
+		var data, marshErr = json.Marshal(viewResponse)
 		if marshErr != nil {
 			// TODO: check if we want to return this response code
 			http.Error(resWriter, "Received bad response for view request from server", http.StatusBadGateway)
@@ -932,8 +953,8 @@ func main() {
 		fmt.Printf("Map set up\n")
 	}
 
-	rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
-	//rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
+	//rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
+	rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
 	// start server
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
