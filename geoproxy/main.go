@@ -8,7 +8,7 @@ package main
 //https://hackernoon.com/writing-a-reverse-proxy-in-just-one-line-with-go-c1edfa78c84b
 
 import (
-	"errors"
+	//"errors"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -25,11 +25,16 @@ import (
 	"strconv"
 	"sync"
 	"time"
+    aws "github.com/aws/aws-sdk-go/aws"
+    session "github.com/aws/aws-sdk-go/aws/session"
+    servicediscovery "github.com/aws/aws-sdk-go/service/servicediscovery"
 	"github.com/NYTimes/gziphandler"
 	uuid "github.com/google/uuid"
 )
 
 var verbose = false
+var instances []*servicediscovery.HttpInstanceSummary
+
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -64,6 +69,10 @@ type ResponseObj struct {
 	ID    string `json:"id"`
 }
 
+type ViewResponseObj struct {
+	Posts []Post `json:"entries"`
+}
+
 // View request passes top-left and bottom-right coords
 // "latlng1": [2.5, -10.3],
 // "latlng2": [0, 80.5]
@@ -87,6 +96,9 @@ type submitRequestPayloadStruct struct {
 }
 
 type viewRequestHandler struct {
+}
+
+type singleViewRequestHandler struct {
 }
 
 type healthResponse struct {
@@ -271,6 +283,12 @@ func getPosts(body []byte) ([]Post, error) {
 
 // Parse the submit requests body
 func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
+	var bodyBytes []byte
+	if request.Body != nil {
+  		bodyBytes, _ = ioutil.ReadAll(request.Body)
+	}
+	request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
 	request.ParseMultipartForm(0)
 	var LatLng []float64
 	lat := request.FormValue("lat")
@@ -290,6 +308,14 @@ func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 
 	var requestPayload submitRequestPayloadStruct
 	requestPayload.LatLng = LatLng
+
+	request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	bodyString := string(bodyBytes)
+	if verbose {
+		log.Println("Submit Body: ")
+		log.Println(bodyString)
+	}
 
 	return requestPayload
 }
@@ -419,7 +445,10 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 	// Edit request body to include id
 	reqPayload.ID = id.String()
 
-	fmt.Printf("%v \n", reqPayload)
+	if verbose {	
+		fmt.Printf("%v \n", reqPayload)
+	}
+
 	setupTimer(id)
 	// Send to other servers for view request
 	for target, coordBox := range targets {
@@ -477,13 +506,11 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 
 func buildProxy(proxy *httputil.ReverseProxy)  {
 
-	fmt.Println("Adding stuff")
-	proxy.ModifyResponse = func(r *http.Response) error {
-			// return nil
-			//
-			// purposefully return an error so ErrorHandler gets called
-			return errors.New("uh-oh")
-	}
+	// proxy.ModifyResponse = func(r *http.Response) error {
+	// 		// return nil
+	// 		// purposefully return an error so ErrorHandler gets called
+	// 		return errors.New("uh-oh")
+	// }
 
 	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
 			fmt.Printf("error was: %+v \n", err)
@@ -523,17 +550,17 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	url, parseErr := url.Parse(target)
+	targ_url, parseErr := url.Parse(target)
 	if parseErr != nil {
 		http.Error(res, "Error parsing url", http.StatusInternalServerError)
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(url)
-	buildProxy(proxy)
-
-	req.URL.Host = url.Host
-	req.URL.Scheme = url.Scheme
-	req.Host = url.Host
+	proxy := httputil.NewSingleHostReverseProxy(targ_url)
+  buildProxy(proxy)
+	req.URL.Host = targ_url.Host
+	req.URL.Scheme = targ_url.Scheme
+	req.Host = targ_url.Host
+	
 	if verbose {
 		for header, values := range req.Header {
 			for _, value := range values {
@@ -638,6 +665,42 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	req.Host = url.Host
 	proxy.ServeHTTP(res,req)
 	return
+}
+
+func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	// Created this method for when we want to only route to a single server. 
+	enableCors(&res)
+
+	if req.Method == "OPTIONS" {
+		res.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	requestPayload := parseViewRequestBody(req)
+
+	// Hackish solution, but here we get the midpoint to then fetch the corresponding server with the same approach we do with submit requests. 
+	var midPoint []float64
+	latVal := (requestPayload.LatLng1[0] + requestPayload.LatLng2[0]) / 2
+	lngVal := (requestPayload.LatLng1[1] + requestPayload.LatLng2[1]) / 2
+	midPoint = append(midPoint, latVal)
+	midPoint = append(midPoint, lngVal)
+	
+	target := getSubmitProxyURL(midPoint)
+
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	targ_url, parseErr := url.Parse(target)
+	if parseErr != nil {
+		http.Error(res, "Error parsing url", http.StatusInternalServerError)
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(targ_url)
+	buildProxy(proxy)
+	//fmt.Println(proxy)
+
+	req.URL.Host = targ_url.Host
+	req.URL.Scheme = targ_url.Scheme
+	req.Host = targ_url.Host
+	proxy.ServeHTTP(res, req)
 }
 
 // Given a request send it to the appropriate url
@@ -846,8 +909,11 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		for i, post := range pl {
 			responseEntries[i]=*post
 		}
+
+		viewResponse := ViewResponseObj{responseEntries}
+
 		// First marshal the response
-		var data, marshErr = json.Marshal(responseEntries)
+		var data, marshErr = json.Marshal(viewResponse)
 		if marshErr != nil {
 			// TODO: check if we want to return this response code
 			http.Error(resWriter, "Received bad response for view request from server", http.StatusBadGateway)
@@ -905,7 +971,30 @@ func multiServerMapCleanup(id uuid.UUID) {
 	mapMutex.Unlock()
 }
 
+func check_service() {
+	fmt.Println("Check service.")
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+        SharedConfigState: session.SharedConfigEnable,
+    }))
+    svc := servicediscovery.New(sess, aws.NewConfig().WithRegion("us-east-2"))
+    req, res := svc.DiscoverInstancesRequest(&servicediscovery.DiscoverInstancesInput{
+		HealthStatus:  aws.String(servicediscovery.HealthStatusFilterHealthy),
+		NamespaceName: aws.String("dns-namespace1"),
+		ServiceName:   aws.String("sd-service1"),
+	})
+	err := req.Send()
+	if err == nil {
+		fmt.Println(res.Instances)
+		instances = res.Instances
+	} else {
+		fmt.Println("Error getting instances.")
+		fmt.Println(err)
+	}
+}
+
 func main() {
+	check_service()
+
 	// Log setup values
 	logSetup()
 	setupMap()
@@ -916,9 +1005,9 @@ func main() {
 		fmt.Printf("Map set up\n")
 	}
 
-	rh := &viewRequestHandler{}
+	//rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
+	rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
 	// start server
-
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
