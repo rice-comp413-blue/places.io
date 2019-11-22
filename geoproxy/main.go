@@ -514,16 +514,15 @@ func buildProxy(proxy *httputil.ReverseProxy)  {
 }
 
 func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
-
 	if req.Method == "OPTIONS" {
 		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
-		// Submit request
-		if verbose {	
-			log.Println("Submit request received")
-		}
+	// Submit request
+	if verbose {	
+		log.Println("Submit request received")
+	}
 	requestPayload := parseSubmitRequestBody(req)
 	target := getSubmitProxyURL(requestPayload.LatLng)
 	logSubmitRequestPayload(requestPayload, target)
@@ -602,15 +601,17 @@ func setupTimer(id uuid.UUID) {
 }
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
-	// Todo: Handle preflight request
-
-
 	if req.Method == "OPTIONS" {
 		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
+	var bodyBytes []byte
+	if req.Body != nil {
+  		bodyBytes, _ = ioutil.ReadAll(req.Body)
+	}
 
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	requestPayload := parseCountRequestBody(req) 
 	if &requestPayload == nil {
 		// Do the appropriate response to client
@@ -650,6 +651,7 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
 	req.Host = url.Host
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	proxy.ServeHTTP(res,req)
 	return
 }
