@@ -975,7 +975,7 @@ func check_service() {
 }
 
 func main() {
-	//check_service()
+	check_service()
 
 	// Log setup values
 	logSetup()
