@@ -1,4 +1,4 @@
-import React, { createRef } from 'react';
+import React from 'react';
 import FeedItem from './FeedItem'
 
 const EmptyFeed = (props) => {
@@ -12,7 +12,7 @@ export default class Feed extends React.Component {
         super(props)
         this.myRef = React.createRef()
     }
-    
+
     componentDidUpdate() {
         if (this.myRef.current) {
             this.myRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -23,7 +23,7 @@ export default class Feed extends React.Component {
         return (
             <div className={this.props.className}>
                 {this.props.elements.length > 0 ?
-                    this.props.elements.map(x => <div key={x.storyid} ref={x.storyid === this.props.selectedStory ? this.myRef : React.createRef()}><FeedItem story={x} onStoryClick={this.props.onStoryClick} selected={x.storyid === this.props.selectedStory}/></div>) :
+                    this.props.elements.map(x => <div key={x.storyid} ref={x.storyid === this.props.selectedStory ? this.myRef : React.createRef()}><FeedItem story={x} onStoryClick={this.props.onStoryClick} selected={x.storyid === this.props.selectedStory} /></div>) :
                     <EmptyFeed />
                 }
             </div>
