@@ -48,6 +48,9 @@ Finally run the proxy with:
 
 By default the geoproxy will listen to port 1330. You can change the default port in the .env file. 
 
+Note that for now, the AWS secret keys have to be specified using the environment variables, AWS_ACCESS_KEY_ID
+and AWS_SECRET_ACCESS_KEY.
+
 ## Tests
 
 Tests are located in the main_test.go file.
