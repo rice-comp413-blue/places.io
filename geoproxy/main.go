@@ -514,18 +514,15 @@ func buildProxy(proxy *httputil.ReverseProxy)  {
 }
 
 func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
-	enableCors(&res)
-
 	if req.Method == "OPTIONS" {
-		//handlePreflight(res, req)
-		//enableCors(&res)
+		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
-		// Submit request
-		if verbose {	
-			log.Println("Submit request received")
-		}
+	// Submit request
+	if verbose {	
+		log.Println("Submit request received")
+	}
 	requestPayload := parseSubmitRequestBody(req)
 	target := getSubmitProxyURL(requestPayload.LatLng)
 	logSubmitRequestPayload(requestPayload, target)
@@ -604,16 +601,17 @@ func setupTimer(id uuid.UUID) {
 }
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
-	// Todo: Handle preflight request
-	enableCors(&res)
-
-
 	if req.Method == "OPTIONS" {
-		//enableCors(&res)
+		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
+	var bodyBytes []byte
+	if req.Body != nil {
+  		bodyBytes, _ = ioutil.ReadAll(req.Body)
+	}
 
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	requestPayload := parseCountRequestBody(req) 
 	if &requestPayload == nil {
 		// Do the appropriate response to client
@@ -653,19 +651,28 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	req.URL.Host = url.Host
 	req.URL.Scheme = url.Scheme
 	req.Host = url.Host
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	proxy.ServeHTTP(res,req)
 	return
 }
 
 func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// Created this method for when we want to only route to a single server. 
-	enableCors(&res)
 
 	if req.Method == "OPTIONS" {
+		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
 	
+	var bodyBytes []byte
+	if req.Body != nil {
+  		bodyBytes, _ = ioutil.ReadAll(req.Body)
+	}
+	if verbose {
+		fmt.Printf("Forwarding following request to server: \n %s \n", string(bodyBytes))
+	}
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	requestPayload := parseViewRequestBody(req)
 
 	// Hackish solution, but here we get the midpoint to then fetch the corresponding server with the same approach we do with submit requests. 
@@ -690,16 +697,15 @@ func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http
 	req.URL.Host = targ_url.Host
 	req.URL.Scheme = targ_url.Scheme
 	req.Host = targ_url.Host
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	proxy.ServeHTTP(res, req)
 }
 
 // Given a request send it to the appropriate url
 func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	enableCors(&res)
 
 	if req.Method == "OPTIONS" {
-		//handlePreflight(res, req)
-		//enableCors(&res)
+		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
@@ -969,7 +975,7 @@ func check_service() {
 }
 
 func main() {
-	check_service()
+	//check_service()
 
 	// Log setup values
 	logSetup()
@@ -981,8 +987,8 @@ func main() {
 		fmt.Printf("Map set up\n")
 	}
 
-	//rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
-	rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
+	rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
+	//rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
 	// start server
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
