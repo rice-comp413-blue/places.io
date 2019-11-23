@@ -21,7 +21,6 @@ ENV AWS_ACCESS_KEY_ID=$aws_id
 ARG aws_secret=0
 ENV AWS_SECRET_ACCESS_KEY=$aws_secret
 
-
 # Copy everything from the current directory to the Working Directory inside the container
 COPY . .
 
