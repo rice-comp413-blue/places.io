@@ -24,16 +24,16 @@ import (
 	"strconv"
 	"sync"
 	"time"
-    aws "github.com/aws/aws-sdk-go/aws"
-    session "github.com/aws/aws-sdk-go/aws/session"
-    servicediscovery "github.com/aws/aws-sdk-go/service/servicediscovery"
+
 	"github.com/NYTimes/gziphandler"
+	aws "github.com/aws/aws-sdk-go/aws"
+	session "github.com/aws/aws-sdk-go/aws/session"
+	servicediscovery "github.com/aws/aws-sdk-go/service/servicediscovery"
 	uuid "github.com/google/uuid"
 )
 
 var verbose = false
 var instances []*servicediscovery.HttpInstanceSummary
-
 
 // Coord struct represents the lat-lng coordinate
 type Coord struct {
@@ -84,8 +84,8 @@ type viewRequestPayloadStruct struct {
 }
 
 type countRequestPayloadStruct struct {
-	LatLng1   []float64 `json:"latlng1"`
-	LatLng2   []float64 `json:"latlng2"`
+	LatLng1 []float64 `json:"latlng1"`
+	LatLng2 []float64 `json:"latlng2"`
 }
 
 // Submit request passes the coord to post
@@ -105,6 +105,9 @@ type healthResponse struct {
 	Storyid   string
 	Text      string
 }
+
+// Server task definition to look for server ip addresses
+var serverTaskDef string = "taskDefServer"
 
 // List of server URLs
 var serverURLs []string
@@ -173,20 +176,21 @@ func getNullResponseObj(id string) ResponseObj {
 
 // Log the env variables required for a reverse proxy
 func logSetup() {
-	a_condtion_url := os.Getenv("A_CONDITION_URL")
-	b_condtion_url := os.Getenv("B_CONDITION_URL")
-	default_condtion_url := os.Getenv("DEFAULT_CONDITION_URL")
-
 	log.Printf("Server will run on: %s\n", getListenAddress())
-	log.Printf("Redirecting to A url: %s\n", a_condtion_url)
-	log.Printf("Redirecting to B url: %s\n", b_condtion_url)
-	log.Printf("Redirecting to Default url: %s\n", default_condtion_url)
+	if len(serverURLs) == 0 {
+		log.Printf("Not connected to any servers.\n")
+		return
+	}
+	for i, url := range serverURLs {
+		log.Printf("Redirecting to server%d url: %s\n", i, url)
+	}
+	// log.Printf("Redirecting to Default url: %s\n", "http://localhost:1333")
 }
 
 // Setups the mapping to servers
 func setupMap() {
 	// Array holds env strings
-	serverURLs = []string{"A_CONDITION_URL", "B_CONDITION_URL"}
+	// serverURLs = []string{"http://localhost:1331", "http://localhost:1332"}
 
 	// Map will map lat-long ranges to index in serverURLs
 	// latitude: (-90, 90) longitude: (-180, 180)
@@ -212,7 +216,7 @@ func requestBodyDecoder(request *http.Request) *json.Decoder {
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
-		return nil	
+		return nil
 	}
 
 	// Because go lang is a pain in the ass if you read the body then any subsequent calls
@@ -228,7 +232,7 @@ func parseViewRequestBody(request *http.Request) viewRequestPayloadStruct {
 
 	if decoder == nil {
 		fmt.Println("Creating body decoder failed")
-		var v viewRequestPayloadStruct 
+		var v viewRequestPayloadStruct
 		return v
 	}
 
@@ -260,7 +264,7 @@ func parseCountRequestBody(request *http.Request) countRequestPayloadStruct {
 		fmt.Println("Parsed count request payload:")
 		fmt.Printf("\t%+v\n", requestPayload)
 	}
-	
+
 	return requestPayload
 }
 
@@ -278,7 +282,7 @@ func getPosts(body []byte) ([]Post, error) {
 func parseSubmitRequestBody(request *http.Request) submitRequestPayloadStruct {
 	var bodyBytes []byte
 	if request.Body != nil {
-  		bodyBytes, _ = ioutil.ReadAll(request.Body)
+		bodyBytes, _ = ioutil.ReadAll(request.Body)
 	}
 	request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
@@ -387,7 +391,7 @@ func getBoundingBoxURLs(rawCoord1 []float64, rawCoord2 []float64) map[string]Coo
 			for lngRange := range coordBoxToServer[latRange] {
 				if rangesOverlap(topLeft.Lng, bottomRight.Lng, lngRange) {
 					// Check if we have already added url
-					urlString := os.Getenv(serverURLs[coordBoxToServer[latRange][lngRange]])
+					urlString := (serverURLs[coordBoxToServer[latRange][lngRange]])
 					if verbose {
 						fmt.Println(urlString)
 					}
@@ -415,7 +419,7 @@ func getSubmitProxyURL(rawCoord []float64) string {
 		if coord.Lat >= latRange.Low && coord.Lat < latRange.High {
 			for lngRange := range coordBoxToServer[latRange] {
 				if coord.Lng >= lngRange.Low && coord.Lng < lngRange.High {
-					return os.Getenv(serverURLs[coordBoxToServer[latRange][lngRange]])
+					return serverURLs[coordBoxToServer[latRange][lngRange]]
 				}
 			}
 		}
@@ -438,7 +442,7 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 	// Edit request body to include id
 	reqPayload.ID = id.String()
 
-	if verbose {	
+	if verbose {
 		fmt.Printf("%v \n", reqPayload)
 	}
 
@@ -496,8 +500,7 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 	}
 }
 
-
-func buildProxy(proxy *httputil.ReverseProxy)  {
+func buildProxy(proxy *httputil.ReverseProxy) {
 
 	// proxy.ModifyResponse = func(r *http.Response) error {
 	// 		// return nil
@@ -506,9 +509,9 @@ func buildProxy(proxy *httputil.ReverseProxy)  {
 	// }
 
 	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
-			fmt.Printf("error was: %+v", err)
-			rw.WriteHeader(http.StatusInternalServerError)
-			rw.Write([]byte(err.Error()))
+		fmt.Printf("error was: %+v", err)
+		rw.WriteHeader(http.StatusInternalServerError)
+		rw.Write([]byte(err.Error()))
 	}
 
 }
@@ -520,7 +523,7 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// Submit request
-	if verbose {	
+	if verbose {
 		log.Println("Submit request received")
 	}
 	requestPayload := parseSubmitRequestBody(req)
@@ -544,7 +547,7 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 	req.URL.Host = targ_url.Host
 	req.URL.Scheme = targ_url.Scheme
 	req.Host = targ_url.Host
-	
+
 	if verbose {
 		for header, values := range req.Header {
 			for _, value := range values {
@@ -608,20 +611,20 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	}
 	var bodyBytes []byte
 	if req.Body != nil {
-  		bodyBytes, _ = ioutil.ReadAll(req.Body)
+		bodyBytes, _ = ioutil.ReadAll(req.Body)
 	}
 
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	requestPayload := parseCountRequestBody(req) 
+	requestPayload := parseCountRequestBody(req)
 	if &requestPayload == nil {
 		// Do the appropriate response to client
 		if verbose {
 			log.Println("Invalid count request from client")
 		}
-		 
+
 		http.Error(res, "Client sent invalid count request body", http.StatusBadRequest)
 	}
-  // Couldn't parse correctly.
+	// Couldn't parse correctly.
 	urlsMap := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
 
 	if len(urlsMap) == 0 {
@@ -629,13 +632,13 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Invalid bounding box queried", http.StatusBadRequest)
 	}
 
-	// Note: below is the code for getting a single URL to forward our request to. 
-    	keys := make([]string, 0, len(urlsMap))
-        for k := range urlsMap {
+	// Note: below is the code for getting a single URL to forward our request to.
+	keys := make([]string, 0, len(urlsMap))
+	for k := range urlsMap {
 		keys = append(keys, k)
 	}
 
-	target:=keys[0] // Get first url
+	target := keys[0] // Get first url
 	// Above is only a temporary solution
 
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
@@ -652,22 +655,22 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	req.URL.Scheme = url.Scheme
 	req.Host = url.Host
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	proxy.ServeHTTP(res,req)
+	proxy.ServeHTTP(res, req)
 	return
 }
 
 func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	// Created this method for when we want to only route to a single server. 
+	// Created this method for when we want to only route to a single server.
 
 	if req.Method == "OPTIONS" {
 		enableCors(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	var bodyBytes []byte
 	if req.Body != nil {
-  		bodyBytes, _ = ioutil.ReadAll(req.Body)
+		bodyBytes, _ = ioutil.ReadAll(req.Body)
 	}
 	if verbose {
 		fmt.Printf("Forwarding following request to server: \n %s \n", string(bodyBytes))
@@ -675,13 +678,13 @@ func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	requestPayload := parseViewRequestBody(req)
 
-	// Hackish solution, but here we get the midpoint to then fetch the corresponding server with the same approach we do with submit requests. 
+	// Hackish solution, but here we get the midpoint to then fetch the corresponding server with the same approach we do with submit requests.
 	var midPoint []float64
 	latVal := (requestPayload.LatLng1[0] + requestPayload.LatLng2[0]) / 2
 	lngVal := (requestPayload.LatLng1[1] + requestPayload.LatLng2[1]) / 2
 	midPoint = append(midPoint, latVal)
 	midPoint = append(midPoint, lngVal)
-	
+
 	target := getSubmitProxyURL(midPoint)
 
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
@@ -709,38 +712,38 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 		res.WriteHeader(http.StatusOK)
 		return
 	}
-		// View request
-		var tag = uuid.New()
-	
-		requestPayload := parseViewRequestBody(req)
-		urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
-		if verbose {
-			fmt.Printf("View request received\n")
-			fmt.Printf("Conditional url(s) attained\n")
-			fmt.Println(urls)
+	// View request
+	var tag = uuid.New()
+
+	requestPayload := parseViewRequestBody(req)
+	urls := getBoundingBoxURLs(requestPayload.LatLng1, requestPayload.LatLng2)
+	if verbose {
+		fmt.Printf("View request received\n")
+		fmt.Printf("Conditional url(s) attained\n")
+		fmt.Println(urls)
+	}
+	// Create an entry in our response map
+
+	var responseCount = 0
+
+	for url := range urls {
+		// todo: make sure that this is returning the actual url and not index
+		if url == ERROR_URL {
+			fmt.Println("Error: Could not send request due to incorrect request body")
+			http.Error(res, "Invalid bounding box queried", http.StatusBadRequest)
+			return
 		}
-		// Create an entry in our response map
+		responseCount = responseCount + 1
+	}
+	// Make all map entries for this uuid
+	mapMutex.Lock()
+	responseWriterMap[tag] = res
+	queryMap[tag] = make(PostList, 0)
+	responsesMap[tag] = responseCount
+	requestMutexMap[tag] = sync.Mutex{}
+	mapMutex.Unlock()
 
-		var responseCount = 0
-
-		for url := range urls {
-			// todo: make sure that this is returning the actual url and not index
-			if url == ERROR_URL {
-				fmt.Println("Error: Could not send request due to incorrect request body")
-				http.Error(res, "Invalid bounding box queried", http.StatusBadRequest)
-				return
-			}
-			responseCount = responseCount + 1
-		}
-		// Make all map entries for this uuid
-		mapMutex.Lock()
-		responseWriterMap[tag] = res
-		queryMap[tag] = make(PostList, 0)
-		responsesMap[tag] = responseCount
-		requestMutexMap[tag] = sync.Mutex{}
-		mapMutex.Unlock()
-
-		serveViewReverseProxy(urls, res, req, requestPayload, tag)
+	serveViewReverseProxy(urls, res, req, requestPayload, tag)
 }
 
 func checkMatches(resp *http.Response) bool {
@@ -750,7 +753,7 @@ func checkMatches(resp *http.Response) bool {
 		fmt.Println("No Response received. Server may not be set up.")
 		return (false)
 	}
-	
+
 	if resp.ContentLength < 0 {
 		fmt.Println("No Data returned")
 		return (false)
@@ -774,6 +777,7 @@ func checkMatches(resp *http.Response) bool {
 	return (false)
 }
 
+// Deprecated: No longer using .env exports
 // This function is called on a timer and pings both
 // servers with a GET request. A 302 response is expected
 // but not yet explicity checked
@@ -862,13 +866,13 @@ func processResponse(response ResponseObj) {
 				}
 				readyToServe = true
 			}
-			queryMap[id]=pl
+			queryMap[id] = pl
 			mutex.Unlock()
 			if readyToServe {
 				if verbose {
 					log.Printf("About to serve request for id: %s\n", id)
 				}
-				
+
 				serveResponseThenCleanup(id)
 			}
 		} else {
@@ -896,7 +900,7 @@ func serveResponseThenCleanup(id uuid.UUID) {
 		// Get the actual structs corresponding to the pointers in the list
 		responseEntries := make([]Post, len(pl))
 		for i, post := range pl {
-			responseEntries[i]=*post
+			responseEntries[i] = *post
 		}
 
 		viewResponse := ViewResponseObj{responseEntries}
@@ -953,29 +957,50 @@ func multiServerMapCleanup(id uuid.UUID) {
 	mapMutex.Unlock()
 }
 
+func updateServerURLs() {
+	for _, instance := range instances {
+		taskDefFam := *instance.Attributes["ECS_TASK_DEFINITION_FAMILY"]
+		if taskDefFam == serverTaskDef {
+			ip := *instance.Attributes["AWS_INSTANCE_IPV4"]
+			serverURLs = append(serverURLs, "http://"+ip)
+			if verbose {
+				log.Printf("Appended server URL: http://%s", ip)
+			}
+		}
+	}
+}
+
 func check_service() {
-	fmt.Println("Check service.")
+	if verbose {
+		fmt.Println("Discovering instances...")
+	}
+
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
-        SharedConfigState: session.SharedConfigEnable,
-    }))
-    svc := servicediscovery.New(sess, aws.NewConfig().WithRegion("us-east-2"))
-    req, res := svc.DiscoverInstancesRequest(&servicediscovery.DiscoverInstancesInput{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	svc := servicediscovery.New(sess, aws.NewConfig().WithRegion("us-east-2"))
+	req, res := svc.DiscoverInstancesRequest(&servicediscovery.DiscoverInstancesInput{
 		HealthStatus:  aws.String(servicediscovery.HealthStatusFilterHealthy),
 		NamespaceName: aws.String("dns-namespace1"),
 		ServiceName:   aws.String("sd-service1"),
 	})
 	err := req.Send()
 	if err == nil {
-		fmt.Println(res.Instances)
+		if verbose {
+			fmt.Println(res.Instances)
+		}
 		instances = res.Instances
+		updateServerURLs()
 	} else {
-		fmt.Println("Error getting instances.")
-		fmt.Println(err)
+		if verbose {
+			fmt.Println("Error getting instances.")
+			fmt.Println(err)
+		}
 	}
 }
 
 func main() {
-	//check_service()
+	check_service()
 
 	// Log setup values
 	logSetup()
@@ -1002,9 +1027,9 @@ func main() {
 	//http.HandleFunc("/", testFixedResponse)
 	//Initialize ticker + channel + run in parallel
 	/*
-	ticker := time.NewTicker(5000 * time.Millisecond)
-	done := make(chan bool)
-	go checkHealth(ticker, done)
+		ticker := time.NewTicker(5000 * time.Millisecond)
+		done := make(chan bool)
+		go checkHealth(ticker, done)
 	*/
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		panic(err)
