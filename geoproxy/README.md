@@ -38,7 +38,7 @@ to load the environment variables that'll be used by the geoproxy
 
 First, run to build:
 ```
-go build -o geoproxy .
+go build --build-arg aws_id=AWS_ID --build-arg aws_secret=AWS_SECRET -o geoproxy .
 ```
 
 Finally run the proxy with:
