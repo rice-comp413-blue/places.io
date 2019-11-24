@@ -580,12 +580,13 @@ func addOptionsCorsHeaders(w *http.ResponseWriter) {
 }
 
 func addPreflightCorsHeaders(w *http.ResponseWriter) {
-	//  Allow these headers in client's response to pre-flight response
+	//  Allow these headers in proxy's response to pre-flight request
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
 func addCorsHeaders(w *http.ResponseWriter) {
+	//  Allow these headers in proxy's response to all requests
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
 
