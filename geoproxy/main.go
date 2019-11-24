@@ -521,8 +521,9 @@ func buildProxy(proxy *httputil.ReverseProxy)  {
 }
 
 func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
+	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
-		enableCors(&res)
+		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
@@ -570,12 +571,23 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 }
 
 // Enable cors for response to pre-flight
-func enableCors(w *http.ResponseWriter) {
+func addOptionsCorsHeaders(w *http.ResponseWriter) {
 	//  allow CORS
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	//  Allow these headers in client's response to pre-flight response
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func addPreflightCorsHeaders(w *http.ResponseWriter) {
+	//  Allow these headers in proxy's response to pre-flight request
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func addCorsHeaders(w *http.ResponseWriter) {
+	//  Allow these headers in proxy's response to all requests
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
 
 // Sets up timeout callback. Call after sending all requests
@@ -613,8 +625,9 @@ func setupTimer(id uuid.UUID) {
 }
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
+	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
-		enableCors(&res)
+		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
@@ -668,9 +681,10 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 
 func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// Created this method for when we want to only route to a single server. 
+	addCorsHeaders(&res)
 
 	if req.Method == "OPTIONS" {
-		enableCors(&res)
+		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
@@ -713,9 +727,10 @@ func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http
 
 // Given a request send it to the appropriate url
 func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	addCorsHeaders(&res)
 
 	if req.Method == "OPTIONS" {
-		enableCors(&res)
+		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
 	}
