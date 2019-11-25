@@ -8,8 +8,11 @@ https://hackernoon.com/writing-a-reverse-proxy-in-just-one-line-with-go-c1edfa78
 This directory contains everything necessary to build and run the proxy in a container. All one has to do is to first build the image by doing:
 
 ```
-docker build -t [image name] .
+export aws_id=[accessKeyId]
+export aws_secret=[secretAccessKey]
+docker build --build-arg aws_id --build-arg aws_secret -t [image name] .
 ```
+Look in secrets.json for the accessKeyId and secretAccessKey. These exports are necessary for permission to discover server instances.
 
 Then run the image:
 
@@ -38,12 +41,18 @@ to load the environment variables that'll be used by the geoproxy
 
 First, run to build:
 ```
-go build --build-arg aws_id=AWS_ID --build-arg aws_secret=AWS_SECRET -o geoproxy .
+export AWS_ACCESS_KEY_ID==[accessKeyId]
+export AWS_SECRET_ACCESS_KEY=[secretAccessKey]
+go build -o geoproxy .
 ```
 
 Finally run the proxy with:
 ```
 ./geoproxy
+```
+or with optional verbose flag:
+```
+./geoproxy -v
 ```
 
 By default the geoproxy will listen to port 1330. You can change the default port in the .env file. 
