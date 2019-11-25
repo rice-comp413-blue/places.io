@@ -10,6 +10,7 @@ WORKDIR /app
 
 # Install gzip dependency
 RUN go get -v github.com/NYTimes/gziphandler
+# Install google uuid dependency
 RUN go get -v github.com/google/uuid
 RUN go get -v github.com/aws/aws-sdk-go/aws
 RUN go get -v github.com/aws/aws-sdk-go/service/servicediscovery
@@ -37,4 +38,4 @@ RUN go build -o geoproxy .
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["./geoproxy"]
+CMD ["./geoproxy", "-v"]

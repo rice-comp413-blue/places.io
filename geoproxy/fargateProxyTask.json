@@ -1,6 +1,6 @@
 {
   "family": "taskDefProxy",
-  "executionRoleArn": "arn:aws:iam::865745777952:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::865745777952:role/ecsTaskRole",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
