@@ -175,7 +175,7 @@ func getNullResponseObj(id string) ResponseObj {
 	return respObj
 }
 
-// Log the env variables required for a reverse proxy
+// Log the server URLs required for a reverse proxy
 func logSetup() {
 	log.Printf("Server will run on: %s\n", getListenAddress())
 	if len(serverURLs) == 0 {
@@ -185,17 +185,12 @@ func logSetup() {
 	for i, url := range serverURLs {
 		log.Printf("Redirecting to server%d url: %s\n", i, url)
 	}
-	// log.Printf("Redirecting to Default url: %s\n", "http://localhost:1333")
 }
 
 // Setups the mapping to servers
 func setupMap() {
-	// Array holds env strings
-	// serverURLs = []string{"http://localhost:1331", "http://localhost:1332"}
-
 	// Map will map lat-long ranges to index in serverURLs
 	// latitude: (-90, 90) longitude: (-180, 180)
-
 	coordBoxToServer[cr1] = map[CoordRange]int{}
 	coordBoxToServer[cr2] = map[CoordRange]int{}
 	coordBoxToServer[cr1][cr3] = 0
@@ -1009,7 +1004,7 @@ func updateServerURLs() {
 	}
 }
 
-func check_service() {
+func checkService() {
 	if verbose {
 		fmt.Println("Discovering instances...")
 	}
@@ -1026,33 +1021,35 @@ func check_service() {
 	err := req.Send()
 	if err == nil {
 		if verbose {
+			fmt.Println("Instances discovered:")
 			fmt.Println(res.Instances)
 		}
 		instances = res.Instances
 		updateServerURLs()
 	} else {
-		if verbose {
-			fmt.Println("Error getting instances.")
-			fmt.Println(err)
-		}
+		log.Printf("Error getting instances: %v\n", err)
 	}
 }
 
 func main() {
-	check_service()
-
-	// Log setup values
-	logSetup()
-	setupMap()
 	flag.BoolVar(&verbose, "v", false, "a bool")
 	flag.Parse()
 	if verbose {
 		fmt.Println("Verbose mode")
-		fmt.Printf("Map set up\n")
 	}
 
-	rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
-	//rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
+	checkService()
+
+	// Log setup values
+	logSetup()
+	setupMap()
+
+	if verbose {
+		fmt.Println("Map set up")
+	}
+
+	// rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
+	rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
 	// start server
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
