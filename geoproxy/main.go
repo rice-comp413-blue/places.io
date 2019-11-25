@@ -996,9 +996,10 @@ func updateServerURLs() {
 		taskDefFam := *instance.Attributes["ECS_TASK_DEFINITION_FAMILY"]
 		if taskDefFam == serverTaskDef {
 			ip := *instance.Attributes["AWS_INSTANCE_IPV4"]
-			serverURLs = append(serverURLs, "http://"+ip)
+			url := "http://" + ip + ":3000"
+			serverURLs = append(serverURLs, url)
 			if verbose {
-				log.Printf("Appended server URL: http://%s", ip)
+				log.Printf("Appended server URL: %s", url)
 			}
 		}
 	}
