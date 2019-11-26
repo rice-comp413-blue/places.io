@@ -1,1 +1,3 @@
 server/secrets.json filter=git-crypt diff=git-crypt
+geoproxy/secrets.json filter=git-crypt diff=git-crypt
+geoproxy/Dockerfile filter=git-crypt diff=git-crypt
