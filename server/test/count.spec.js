@@ -16,7 +16,7 @@ describe('count route', () => {
             .send({"latlng1": [20, -50], "latlng2": [-50, 90]})
             .end((err, res) => {
                 res.should.have.status(200);
-                parseInt(res.body.count).should.be.greaterThan(50);
+                parseInt(res.body.count).should.be.greaterThan(0);
                 done();
             });
     });
