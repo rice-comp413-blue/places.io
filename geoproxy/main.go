@@ -681,9 +681,9 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// Created this method for when we want to only route to a single server.
 	
-
+	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
-		addCorsHeaders(&res)
+		
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
