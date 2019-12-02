@@ -17,7 +17,7 @@ const useStyles = makeStyles(() => ({
     borderColor: 'grey',
     marginBottom: '1em',
     cursor: 'pointer'
-  }, 
+  },
   media: {
     height: 0,
     paddingTop: '56.25%', // 16:9
@@ -32,7 +32,7 @@ const useStyles = makeStyles(() => ({
     color: 'black'
   },
   id: {
-    fontSize: '0.8em',
+    fontSize: '0.6em',
     right: 0,
     fontStyle: 'italic',
     marginLeft: 'auto',
@@ -45,7 +45,7 @@ export default function MediaCard(props) {
   const classes = useStyles();
 
   return (
-    <Card className={classes.card} style={props.selected ? {'borderWidth':'5px'} : undefined} onClick={() => props.onStoryClick(props.story.storyid)}>
+    <Card className={classes.card} style={props.selected ? { 'borderWidth': '5px' } : undefined} onClick={() => props.onStoryClick(props.story.storyid)}>
       <CardHeader
         title={
           <div className={classes.headerTitle}>
@@ -58,7 +58,7 @@ export default function MediaCard(props) {
           </div>}
       />
 
-      {props.story.image_url !== null ?
+      {props.story.image_url ?
         <CardMedia
           className={classes.media}
           image={props.story.image_url}
