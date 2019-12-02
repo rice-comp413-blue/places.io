@@ -624,8 +624,8 @@ func setupTimer(id uuid.UUID) {
 }
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
-	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
+		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -661,18 +661,18 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	// Above is only a temporary solution
 
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	url, err := url.Parse(target)
+	targ_url, err := url.Parse(target)
 	if err != nil {
 		log.Printf("Invalid url: %s \n", target)
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	proxy := httputil.NewSingleHostReverseProxy(url)
+	proxy := httputil.NewSingleHostReverseProxy(targ_url)
 	buildProxy(proxy)
 
-	req.URL.Host = url.Host
-	req.URL.Scheme = url.Scheme
-	req.Host = url.Host
+	req.URL.Host = targ_url.Host
+	req.URL.Scheme = targ_url.Scheme
+	req.Host = targ_url.Host
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	proxy.ServeHTTP(res, req)
 	return
