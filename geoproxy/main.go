@@ -624,8 +624,8 @@ func setupTimer(id uuid.UUID) {
 }
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
-	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
+		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
