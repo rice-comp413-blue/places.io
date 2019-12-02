@@ -681,9 +681,9 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// Created this method for when we want to only route to a single server.
 	
-	addCorsHeaders(&res)
+	
 	if req.Method == "OPTIONS" {
-		
+		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -728,9 +728,9 @@ func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http
 // Given a request send it to the appropriate url
 func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	
-
+	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
-		addCorsHeaders(&res)
+		
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -1052,8 +1052,8 @@ func main() {
 		fmt.Println("Map set up")
 	}
 
-	// rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
-	rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
+	rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
+	//rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
 	// start server
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
