@@ -57,6 +57,7 @@ export default class CustomForm extends React.Component {
                     <div>
                         <input
                             type="file"
+                            accept="image/*"
                             id="fileinput"
                             onChange={this.handleFileSelection.bind(this)}
                             ref={(ref) => this.fileUpload = ref}
