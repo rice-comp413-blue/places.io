@@ -52,7 +52,7 @@ class MapView extends React.Component {
                 style={{ height: '90vh', width: '100%' }}>
                 <TileLayer
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url="https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png"
                 />
 
                 {this.props.markers.filter((b) => b.storyid !== this.props.selectedStory).map(marker => {
