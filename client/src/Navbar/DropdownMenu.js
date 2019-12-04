@@ -11,7 +11,6 @@ import Paper from '@material-ui/core/Paper';
 import Popper from '@material-ui/core/Popper';
 import MenuList from '@material-ui/core/MenuList';
 
-
 const DropdownMenu = () => {
     const [open, setOpen] = React.useState(false);
     const anchorRef = React.useRef(null);
@@ -45,6 +44,8 @@ const DropdownMenu = () => {
         prevOpen.current = open;
     }, [open]);
 
+    let SYS_MAX = 2147483638;
+
     return (
         <div>
             <Button
@@ -56,7 +57,7 @@ const DropdownMenu = () => {
                 <MenuIcon/>
             </Button>
 
-            <Popper open={open} anchorEl={anchorRef.current} role={undefined} transition disablePortal>
+            <Popper style={{ zIndex: SYS_MAX }} open={open} anchorEl={anchorRef.current} role={undefined} transition disablePortal>
                 {({ TransitionProps, placement }) => (
                     <Grow
                         {...TransitionProps}
