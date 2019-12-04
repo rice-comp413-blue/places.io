@@ -190,8 +190,8 @@ func logSetup() {
 	}
 }
 
-// Setups the mapping to servers
-func setupMap() {
+// Sets the basic coords for map
+func mapCoords() {
 	// Map will map lat-long ranges to index in serverURLs
 	// latitude: (-90, 90) longitude: (-180, 180)
 	if len(serverURLs) == 0 {
@@ -200,6 +200,15 @@ func setupMap() {
 	}
 	coordBoxToServer[cr1] = map[CoordRange]int{}
 	coordBoxToServer[cr2] = map[CoordRange]int{}
+	mapURLS()
+}
+
+// Sets the basic URLs for map
+func mapURLS() {
+	if len(serverURLs) == 0 {
+		log.Println("ERROR: Unable to setup map due to no server connections.")
+		return
+	}
 	coordBoxToServer[cr1][cr3] = 0
 	// Will be mapped to 0 if only 1 server connected
 	coordBoxToServer[cr2][cr3] = 1 % len(serverURLs)
@@ -532,7 +541,7 @@ func buildProxy(proxy *httputil.ReverseProxy) {
 }
 
 func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
-	
+
 	if req.Method == "OPTIONS" {
 		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
@@ -673,18 +682,18 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	// Above is only a temporary solution
 
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	targ_url, err := url.Parse(target)
+	targURL, err := url.Parse(target)
 	if err != nil {
 		log.Printf("Invalid url: %s \n", target)
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	proxy := httputil.NewSingleHostReverseProxy(targ_url)
+	proxy := httputil.NewSingleHostReverseProxy(targURL)
 	buildProxy(proxy)
 
-	req.URL.Host = targ_url.Host
-	req.URL.Scheme = targ_url.Scheme
-	req.Host = targ_url.Host
+	req.URL.Host = targURL.Host
+	req.URL.Scheme = targURL.Scheme
+	req.Host = targURL.Host
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	proxy.ServeHTTP(res, req)
 	return
@@ -692,8 +701,7 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 
 func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// Created this method for when we want to only route to a single server.
-	
-	
+
 	if req.Method == "OPTIONS" {
 		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
@@ -739,10 +747,10 @@ func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http
 
 // Given a request send it to the appropriate url
 func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	
+
 	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
-		
+
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -1006,6 +1014,8 @@ func multiServerMapCleanup(id uuid.UUID) {
 }
 
 func updateServerURLs() {
+	serverURLs = nil
+	// serverURLs = make([]string, len(instances))
 	for _, instance := range instances {
 		taskDefFam := *instance.Attributes["ECS_TASK_DEFINITION_FAMILY"]
 		if taskDefFam == serverTaskDef {
@@ -1019,7 +1029,7 @@ func updateServerURLs() {
 	}
 }
 
-func checkService() {
+func discoverInstances() {
 	if verbose {
 		fmt.Println("Discovering healthy instances...")
 	}
@@ -1046,6 +1056,23 @@ func checkService() {
 	}
 }
 
+func rediscoverInstances(ticker *time.Ticker, done chan bool) {
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			// Reset servers
+			discoverInstances()
+			if verbose {
+				log.Println("Resetting URLs...")
+				logSetup()
+			}
+			mapURLS()
+		}
+	}
+}
+
 func main() {
 	flag.BoolVar(&verbose, "v", false, "a bool")
 	flag.Parse()
@@ -1053,11 +1080,11 @@ func main() {
 		fmt.Println("Verbose mode")
 	}
 
-	checkService()
+	discoverInstances()
 
 	// Log setup values
 	logSetup()
-	setupMap()
+	mapCoords()
 
 	if verbose {
 		fmt.Println("Map set up")
@@ -1072,15 +1099,9 @@ func main() {
 	http.Handle("/view", gzHandleFunc)
 	http.HandleFunc("/submit", serveSubmitReverseProxy)
 	http.HandleFunc("/count", serveCountRequest)
-
-	//http.HandleFunc("/", handleRequestAndRedirect)
-	//http.HandleFunc("/", testFixedResponse)
-	//Initialize ticker + channel + run in parallel
-	/*
-		ticker := time.NewTicker(5000 * time.Millisecond)
-		done := make(chan bool)
-		go checkHealth(ticker, done)
-	*/
+	ticker := time.NewTicker(5 * time.Minute)
+	done := make(chan bool)
+	go rediscoverInstances(ticker, done)
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		fmt.Println("Error when calling listen and serve")
 		panic(err)
