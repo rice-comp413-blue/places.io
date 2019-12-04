@@ -11,34 +11,35 @@ import Paper from '@material-ui/core/Paper';
 import Popper from '@material-ui/core/Popper';
 import MenuList from '@material-ui/core/MenuList';
 
-const DropdownMenu = () => {
+const DropdownMenu = (props) => {
     const [open, setOpen] = React.useState(false);
     const anchorRef = React.useRef(null);
-  
+
     const handleToggle = () => {
-      setOpen(prevOpen => !prevOpen);
+        setOpen(prevOpen => !prevOpen);
     };
-  
+
     const handleClose = event => {
-      if (anchorRef.current && anchorRef.current.contains(event.target)) {
-        return;
-      }
-  
-      setOpen(false);
-    };
-  
-    function handleListKeyDown(event) {
-      if (event.key === 'Tab') {
-        event.preventDefault();
+        if (anchorRef.current && anchorRef.current.contains(event.target)) {
+            return;
+        }
+        props.updatePageIdFunc(Number(event.target.id));
+
         setOpen(false);
-      }
+    };
+
+    function handleListKeyDown(event) {
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            setOpen(false);
+        }
     }
 
     // return focus to the button when we transitioned from !open -> open
     const prevOpen = React.useRef(open);
     React.useEffect(() => {
         if (prevOpen.current === true && open === false) {
-        anchorRef.current.focus();
+            anchorRef.current.focus();
         }
 
         prevOpen.current = open;
@@ -54,22 +55,21 @@ const DropdownMenu = () => {
                 aria-haspopup="true"
                 onClick={handleToggle}
             >
-                <MenuIcon/>
+                <MenuIcon />
             </Button>
 
-            <Popper style={{ zIndex: SYS_MAX }} open={open} anchorEl={anchorRef.current} role={undefined} transition disablePortal>
+            <Popper style={{ zIndex: SYS_MAX, marginRight: '2em' }} open={open} anchorEl={anchorRef.current} role={undefined} transition disablePortal>
                 {({ TransitionProps, placement }) => (
                     <Grow
                         {...TransitionProps}
                         style={{ transformOrigin: placement === 'bottom' ? 'center top' : 'center bottom' }}
                     >
-                        <Paper style={{backgroundColor: 'white'}}>
+                        <Paper style={{ backgroundColor: 'white' }}>
                             <ClickAwayListener onClickAway={handleClose}>
-                            <MenuList autoFocusItem={open} id="menu-list-grow" onKeyDown={handleListKeyDown}>
-                                <MenuItem onClick={handleClose}>Profile</MenuItem>
-                                <MenuItem onClick={handleClose}>My account</MenuItem>
-                                <MenuItem onClick={handleClose}>Logout</MenuItem>
-                            </MenuList>
+                                <MenuList autoFocusItem={open} id="menu-list-grow" onKeyDown={handleListKeyDown}>
+                                    <MenuItem id={0} onClick={handleClose}>Main App</MenuItem>
+                                    <MenuItem id={1} onClick={handleClose}>About</MenuItem>
+                                </MenuList>
                             </ClickAwayListener>
                         </Paper>
                     </Grow>
