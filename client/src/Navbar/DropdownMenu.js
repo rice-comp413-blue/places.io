@@ -69,6 +69,7 @@ const DropdownMenu = (props) => {
                                 <MenuList autoFocusItem={open} id="menu-list-grow" onKeyDown={handleListKeyDown}>
                                     <MenuItem id={0} onClick={handleClose}>Home</MenuItem>
                                     <MenuItem id={1} onClick={handleClose}>About</MenuItem>
+                                    <MenuItem id={2} onClick={handleClose}>Spec</MenuItem>
                                 </MenuList>
                             </ClickAwayListener>
                         </Paper>
