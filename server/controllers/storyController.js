@@ -1,6 +1,7 @@
 const storyModel = require('../models/storyModel');
 const boxModel = require('../models/boxModel');
 const healthModel = require('../models/healthModel');
+const axios = require('axios');
 
 const getStoriesInBox = (req, res) => {
     let newBox = new boxModel(req.body);
@@ -25,8 +26,12 @@ const getTotalStoryCount = (req, res) => {
     })
 };
 
-const createStory = (req, res) => {
+const createStory = async (req, res) => {
     let newStory = new storyModel(req.body);
+
+    // reverse geocoding on the selected coordinates
+    let nominatimQuery = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${req.body.lat}&lon=${req.body.lng}`;
+    await axios.get(nominatimQuery).then((res) => { newStory.updateAddress(res.data.display_name); });
 
     if (req.file) { newStory.updateImageUrl(req.file.location); }
 
