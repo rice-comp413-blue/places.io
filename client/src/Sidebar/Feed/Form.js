@@ -28,20 +28,16 @@ export default class CustomForm extends React.Component {
             .then(res => console.log(res))
             .catch(err => console.log(err));
 
-        this.setState({ description: '', file: null })
+        this.setState({ description: '', file: null, showToast: true });
         // reset lat and lng
         this.props.updateLatLngFunc({ lat: 0, lng: 0 });
         this.fileUpload.value = '';
-        this.setShowToast(true);
     }
 
     updateDescription(e) {
         this.setState({ description: e.target.value });
     }
 
-    setShowToast = showToast => {
-        this.setState({ showToast })
-    }
 
     buttonEnabled() {
         const latLngSelected = this.props.curLatLng[0] !== null && this.props.curLatLng[1] != null;
@@ -54,7 +50,7 @@ export default class CustomForm extends React.Component {
         return (
             <div>
                 <div >Selected point: ({this.props.curLatLng[0].toFixed(4)} {this.props.curLatLng[1].toFixed(4)})</div>
-                <Toast style={{ position: 'absolute', top: '20em', left: '3em', zIndex: 999 }} onClose={() => this.setShowToast(false)} show={this.state.showToast} delay={4000} autohide>
+                <Toast style={{ position: 'absolute', top: '20em', left: '3em', zIndex: 999 }} onClose={() => this.setState({ showToast: false })} show={this.state.showToast} delay={4000} autohide>
                     <Toast.Header>
                         <img
                             src="holder.js/20x20?text=%20"
