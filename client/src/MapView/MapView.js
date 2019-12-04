@@ -17,7 +17,7 @@ class MapView extends React.Component {
             currentZoom: 10
         };
     }
-    
+
     componentDidMount() {
         this.map.leafletElement.on('zoomend', () => {
             this.setState({ currentZoom: this.map.leafletElement.getZoom() });
@@ -44,7 +44,7 @@ class MapView extends React.Component {
 
     mapCenter() {
         const riceCampusCoordinate = [29.749907, -95.358421]
-        return riceCampusCoordinate
+        return riceCampusCoordinate;
     }
 
     render() {
