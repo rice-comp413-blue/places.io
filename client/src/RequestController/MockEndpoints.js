@@ -26,6 +26,7 @@ const MockEndpoints = {
                 long: _.random(upperLeft[1], bottomRight[1], true),
                 image_url,
                 text,
+                address: '123 ABC Street, Houston, TX 77005',
                 timestamp: new Date().toGMTString()
             });
         }
