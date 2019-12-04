@@ -8,6 +8,7 @@ import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
 import Typography from '@material-ui/core/Typography';
 
+
 const useStyles = makeStyles(() => ({
   card: {
     maxWidth: 1000,
@@ -43,13 +44,14 @@ const useStyles = makeStyles(() => ({
 
 export default function MediaCard(props) {
   const classes = useStyles();
+  let address = props.story.address ? props.story.address : `Location: (${props.story.lat.toFixed(4)}, ${props.story.long.toFixed(4)})`
 
   return (
     <Card className={classes.card} style={props.selected ? { 'borderWidth': '5px' } : undefined} onClick={() => props.onStoryClick(props.story.storyid)}>
       <CardHeader
         title={
           <div className={classes.headerTitle}>
-            {`Location: (${props.story.lat.toFixed(4)}, ${props.story.long.toFixed(4)})`}
+            {address}
           </div>
         }
         subheader={

@@ -3,6 +3,8 @@ import './App.css';
 import MainApp from './MainApp/MainApp';
 import PlacesNavbar from './Navbar/PlacesNavbar';
 import About from './About/About';
+import Spec from './Spec/Spec';
+
 class App extends React.Component {
   constructor(props) {
     super(props);
@@ -23,7 +25,7 @@ class App extends React.Component {
     return (
       <div className="App">
         <PlacesNavbar updatePageIdFunc={this.updatePageId.bind(this)} />
-        {this.state.pageId === 0 ? <MainApp /> : <About />}
+        {this.state.pageId === 0 ? <MainApp /> : this.state.pageId === 1 ? <About /> : <Spec/>}
 
       </div>
     );
