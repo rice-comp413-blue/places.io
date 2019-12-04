@@ -6,13 +6,17 @@ import DropdownMenu from './DropdownMenu';
 
 const PlacesNavbar = (props) => {
 
+    const home = () => {
+        props.updatePageIdFunc(0);
+    }
+
     return (
         <div>
             <Navbar bg="light">
                 {/* Align left */}
                 <ul className="navbar-nav mr-auto">
                     <img style={{ height: '100%', width: '2em', marginRight: '0.5em' }} alt="logo" src={logo} />
-                    <Navbar.Brand>places.io</Navbar.Brand>
+                    <Navbar.Brand href="#home" onClick={()=>home()}>places.io</Navbar.Brand>
                 </ul>
 
                 {/* Align right */}

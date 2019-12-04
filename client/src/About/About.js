@@ -18,14 +18,14 @@ const About = (props) => {
                     </Col>
                     <Col className="section" xs={8}>
                         <div style={{paddingTop:'6em'}}>
-                            <p>places.io is a platform to empower cultural and societal diffusion. We believe that people should have one centralized application to share and view images and content about locations around the world. We want to enable people to share images about their locations and display the intricacies of their individual worlds.</p>
+                            <p>places.io is a platform to empower cultural and societal diffusion. We believe that people should have one centralized application to share and view content about places all around the world. We want to enable people to share images about their locations and display the intricacies of their individual worlds.</p>
                         </div>
                     </Col>
                 </Row>
                 <Row>
                     <Col className="section" xs={8} style={{textAlign: 'left'}}>
                         <div style={{paddingTop:'8em'}}>
-                            <p>At your fingertips, is the ability to explore new worlds and cultures. So go ahead, laugh at the silly posts of your friends, admire the beauty of incredible locations, enjoy everything that the world has to offer. See from the perspective of another. And let them see from yours.</p>
+                            <p>At your fingertips, is the ability to explore new worlds and cultures. So go ahead, laugh at the silly posts of your friends, admire the beauty of incredible new places, enjoy everything that the world has to offer. See from the perspective of another. And let them see from yours.</p>
                         </div>                        
                     </Col>
                     <Col className="section" xs={4}>

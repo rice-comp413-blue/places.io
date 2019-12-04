@@ -67,9 +67,9 @@ const DropdownMenu = (props) => {
                         <Paper style={{ backgroundColor: 'white' }}>
                             <ClickAwayListener onClickAway={handleClose}>
                                 <MenuList autoFocusItem={open} id="menu-list-grow" onKeyDown={handleListKeyDown}>
-                                    <MenuItem id={0} onClick={handleClose}>Home</MenuItem>
-                                    <MenuItem id={1} onClick={handleClose}>About</MenuItem>
-                                    <MenuItem id={2} onClick={handleClose}>Spec</MenuItem>
+                                    <MenuItem id={0} onClick={handleClose} href="#home">Home</MenuItem>
+                                    <MenuItem id={1} onClick={handleClose} href="#about">About</MenuItem>
+                                    <MenuItem id={2} onClick={handleClose} href="#spec">Spec</MenuItem>
                                 </MenuList>
                             </ClickAwayListener>
                         </Paper>
