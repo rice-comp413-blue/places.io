@@ -62,7 +62,7 @@ const DropdownMenu = () => {
                         {...TransitionProps}
                         style={{ transformOrigin: placement === 'bottom' ? 'center top' : 'center bottom' }}
                     >
-                        <Paper>
+                        <Paper style={{backgroundColor: 'white'}}>
                             <ClickAwayListener onClickAway={handleClose}>
                             <MenuList autoFocusItem={open} id="menu-list-grow" onKeyDown={handleListKeyDown}>
                                 <MenuItem onClick={handleClose}>Profile</MenuItem>
