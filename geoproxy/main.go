@@ -1102,8 +1102,8 @@ func main() {
 	ticker := time.NewTicker(5 * time.Minute)
 	done := make(chan bool)
 	go rediscoverInstances(ticker, done)
-	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
-		fmt.Println("Error when calling listen and serve")
-		panic(err)
+	//if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
+	if err := http.ListenAndServeTLS(getListenAddress(), "proxy.crt", "proxy.key", nil); err != nil {
+		log.Fatal("ListenAndServe: ", err)
 	}
 }
