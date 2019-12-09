@@ -17,6 +17,7 @@ class MapView extends React.Component {
             currentZoom: 10
         };
     }
+
     componentDidMount() {
         this.map.leafletElement.on('zoomend', () => {
             this.setState({ currentZoom: this.map.leafletElement.getZoom() });
@@ -43,7 +44,7 @@ class MapView extends React.Component {
 
     mapCenter() {
         const riceCampusCoordinate = [29.749907, -95.358421]
-        return riceCampusCoordinate
+        return riceCampusCoordinate;
     }
 
     render() {
@@ -52,7 +53,7 @@ class MapView extends React.Component {
                 style={{ height: '90vh', width: '100%' }}>
                 <TileLayer
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url="https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png"
                 />
 
                 {this.props.markers.filter((b) => b.storyid !== this.props.selectedStory).map(marker => {

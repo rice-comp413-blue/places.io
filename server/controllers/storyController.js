@@ -4,6 +4,7 @@ const healthModel = require('../models/healthModel');
 const StoriesCache = require('../cache/cache');
 const CACHE_LIMIT = 10000; // number of stories the cache can hold at a time
 const cache = new StoriesCache(CACHE_LIMIT);
+const axios = require('axios');
 
 const getStoriesInBox = (req, res) => {
     let newBox = new boxModel(req.body);
@@ -37,8 +38,13 @@ const getTotalStoryCount = (req, res) => {
     })
 };
 
-const createStory = (req, res) => {
+const createStory = async (req, res) => {
     let newStory = new storyModel(req.body);
+
+    // reverse geocoding on the selected coordinates
+    let nominatimQuery = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${req.body.lat}&lon=${req.body.lng}`;
+    await axios.get(nominatimQuery).then((res) => { newStory.updateAddress(res.data.display_name); });
+
     if (req.file) { newStory.updateImageUrl(req.file.location); }
     storyModel.createStory(newStory, function (err, record) {
         if (err) {

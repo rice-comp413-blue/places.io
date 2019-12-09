@@ -34,6 +34,8 @@ import (
 )
 
 var verbose = false
+
+// Holds instances discovered from querying service discovery
 var instances []*servicediscovery.HttpInstanceSummary
 
 // Coord struct represents the lat-lng coordinate
@@ -69,6 +71,7 @@ type ResponseObj struct {
 	ID    string `json:"id"`
 }
 
+// ViewResponseObj specifically for server response posts
 type ViewResponseObj struct {
 	Posts []Post `json:"entries"`
 }
@@ -102,9 +105,9 @@ type singleViewRequestHandler struct {
 }
 
 type healthResponse struct {
-	Image_url string
-	Storyid   string
-	Text      string
+	ImageURL string
+	Storyid  string
+	Text     string
 }
 
 // Server task definition to look for server ip addresses
@@ -116,11 +119,11 @@ var serverURLs []string
 // 2D map of LatCoordRange:LngCoordRange:Index of server in serverURLs
 var coordBoxToServer = map[CoordRange]map[CoordRange]int{}
 
-// Error coord
-var ERROR_COORD = Coord{360, 360}
+// ErrorCoord used as an invalid coord to handle errors
+var ErrorCoord = Coord{360, 360}
 
-// Error url
-var ERROR_URL = "ERROR"
+// ErrorURL used as an invalid URL to handle errors
+var ErrorURL = "ERROR"
 
 //Coordinate ranges
 var cr1 = CoordRange{-90, 0}
@@ -179,7 +182,7 @@ func getNullResponseObj(id string) ResponseObj {
 func logSetup() {
 	log.Printf("Server will run on: %s\n", getListenAddress())
 	if len(serverURLs) == 0 {
-		log.Printf("Not connected to any servers.\n")
+		log.Println("Not connected to any servers.")
 		return
 	}
 	for i, url := range serverURLs {
@@ -187,23 +190,37 @@ func logSetup() {
 	}
 }
 
-// Setups the mapping to servers
-func setupMap() {
+// Sets the basic coords for map
+func mapCoords() {
 	// Map will map lat-long ranges to index in serverURLs
 	// latitude: (-90, 90) longitude: (-180, 180)
+	if len(serverURLs) == 0 {
+		log.Println("ERROR: Unable to setup map due to no server connections.")
+		return
+	}
 	coordBoxToServer[cr1] = map[CoordRange]int{}
 	coordBoxToServer[cr2] = map[CoordRange]int{}
-	coordBoxToServer[cr1][cr3] = 0
-	coordBoxToServer[cr2][cr3] = 1
+	mapURLS()
 }
 
+// Sets the basic URLs for map
+func mapURLS() {
+	if len(serverURLs) == 0 {
+		log.Println("ERROR: Unable to setup map due to no server connections.")
+		return
+	}
+	coordBoxToServer[cr1][cr3] = 0
+	// Will be mapped to 0 if only 1 server connected
+	coordBoxToServer[cr2][cr3] = 1 % len(serverURLs)
+}
+
+// Deprecated: health checks not being used currently
 func modifyMap(conditional int) {
 	if conditional == 0 {
 		coordBoxToServer[cr1][cr3] = 1
 	} else if conditional == 1 {
 		coordBoxToServer[cr2][cr3] = 0
 	}
-
 }
 
 // Get a json decoder for a given requests body
@@ -333,17 +350,17 @@ func logSubmitRequestPayload(requestionPayload submitRequestPayloadStruct, proxy
 func parseCoord(coord []float64) Coord {
 	if len(coord) != 2 {
 		fmt.Printf("Error: Coordinate passed into json request should be of form [0.0, 0.0]\n")
-		return ERROR_COORD
+		return ErrorCoord
 	}
 
 	if coord[0] < -90 || coord[0] > 90 {
 		fmt.Printf("Error: Latitude should be in range [-90, 90]\n")
-		return ERROR_COORD
+		return ErrorCoord
 	}
 
 	if coord[1] < -180 || coord[1] > 180 {
 		fmt.Printf("Error: Longitude should be in range [-180, 180]\n")
-		return ERROR_COORD
+		return ErrorCoord
 	}
 
 	return Coord{coord[0], coord[1]}
@@ -381,6 +398,11 @@ func getBoundingBoxURLs(rawCoord1 []float64, rawCoord2 []float64) map[string]Coo
 	topLeft := parseCoord(rawCoord1)
 	bottomRight := parseCoord(rawCoord2)
 
+	if topLeft == ErrorCoord || bottomRight == ErrorCoord {
+		urls[ErrorURL] = CoordBox{ErrorCoord, ErrorCoord}
+		return urls
+	}
+
 	// Note that bottom right lat < top left lat
 	// bottom right lng > top left lng
 	coordBox := CoordBox{
@@ -413,8 +435,8 @@ func getBoundingBoxURLs(rawCoord1 []float64, rawCoord2 []float64) map[string]Coo
 func getSubmitProxyURL(rawCoord []float64) string {
 	coord := parseCoord(rawCoord)
 
-	if coord == ERROR_COORD {
-		return ERROR_URL
+	if coord == ErrorCoord {
+		return ErrorURL
 	}
 
 	for latRange := range coordBoxToServer {
@@ -426,7 +448,7 @@ func getSubmitProxyURL(rawCoord []float64) string {
 			}
 		}
 	}
-	return ERROR_URL
+	return ErrorURL
 }
 
 func isJSON(s string) bool {
@@ -519,8 +541,9 @@ func buildProxy(proxy *httputil.ReverseProxy) {
 }
 
 func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
-	addCorsHeaders(&res)
+
 	if req.Method == "OPTIONS" {
+		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -539,23 +562,22 @@ func serveSubmitReverseProxy(res http.ResponseWriter, req *http.Request) {
 
 	target := getSubmitProxyURL(requestPayload.LatLng)
 	logSubmitRequestPayload(requestPayload, target)
-	if target == ERROR_URL {
+	if target == ErrorURL {
 		log.Printf("Error: Could not send request due to incorrect request body\n")
 		http.Error(res, "Client queried for invalid coordinate", http.StatusBadRequest)
-		// Todo: check if this is valid. I put this as the response because we assume that if we can't find the url the client gave us a bad request
 		return
 	}
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	targ_url, parseErr := url.Parse(target)
+	targURL, parseErr := url.Parse(target)
 	if parseErr != nil {
 		http.Error(res, "Error parsing url", http.StatusInternalServerError)
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(targ_url)
+	proxy := httputil.NewSingleHostReverseProxy(targURL)
 	buildProxy(proxy)
-	req.URL.Host = targ_url.Host
-	req.URL.Scheme = targ_url.Scheme
-	req.Host = targ_url.Host
+	req.URL.Host = targURL.Host
+	req.URL.Scheme = targURL.Scheme
+	req.Host = targURL.Host
 
 	if verbose {
 		for header, values := range req.Header {
@@ -623,8 +645,8 @@ func setupTimer(id uuid.UUID) {
 }
 
 func serveCountRequest(res http.ResponseWriter, req *http.Request) {
-	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
+		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -660,18 +682,18 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 	// Above is only a temporary solution
 
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	url, err := url.Parse(target)
+	targURL, err := url.Parse(target)
 	if err != nil {
 		log.Printf("Invalid url: %s \n", target)
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	proxy := httputil.NewSingleHostReverseProxy(url)
+	proxy := httputil.NewSingleHostReverseProxy(targURL)
 	buildProxy(proxy)
 
-	req.URL.Host = url.Host
-	req.URL.Scheme = url.Scheme
-	req.Host = url.Host
+	req.URL.Host = targURL.Host
+	req.URL.Scheme = targURL.Scheme
+	req.Host = targURL.Host
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	proxy.ServeHTTP(res, req)
 	return
@@ -679,9 +701,9 @@ func serveCountRequest(res http.ResponseWriter, req *http.Request) {
 
 func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// Created this method for when we want to only route to a single server.
-	addCorsHeaders(&res)
 
 	if req.Method == "OPTIONS" {
+		addCorsHeaders(&res)
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -707,27 +729,28 @@ func (rh *singleViewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http
 	target := getSubmitProxyURL(midPoint)
 
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	targ_url, parseErr := url.Parse(target)
+	targURL, parseErr := url.Parse(target)
 	if parseErr != nil {
 		http.Error(res, "Error parsing url", http.StatusInternalServerError)
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(targ_url)
+	proxy := httputil.NewSingleHostReverseProxy(targURL)
 	buildProxy(proxy)
 	//fmt.Println(proxy)
 
-	req.URL.Host = targ_url.Host
-	req.URL.Scheme = targ_url.Scheme
-	req.Host = targ_url.Host
+	req.URL.Host = targURL.Host
+	req.URL.Scheme = targURL.Scheme
+	req.Host = targURL.Host
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	proxy.ServeHTTP(res, req)
 }
 
 // Given a request send it to the appropriate url
 func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	addCorsHeaders(&res)
 
+	addCorsHeaders(&res)
 	if req.Method == "OPTIONS" {
+
 		addPreflightCorsHeaders(&res)
 		res.WriteHeader(http.StatusOK)
 		return
@@ -759,7 +782,7 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 
 	for url := range urls {
 		// todo: make sure that this is returning the actual url and not index
-		if url == ERROR_URL {
+		if url == ErrorURL {
 			fmt.Println("Error: Could not send request due to incorrect request body")
 			http.Error(res, "Invalid bounding box queried", http.StatusBadRequest)
 			return
@@ -791,16 +814,16 @@ func checkMatches(resp *http.Response) bool {
 	}
 	p = make([]byte, resp.ContentLength)
 	resp.Body.Read(p)
-	healthJson := string(p)
+	healthJSON := string(p)
 	var healthResp []healthResponse
-	json.Unmarshal([]byte(healthJson), &healthResp)
+	json.Unmarshal([]byte(healthJSON), &healthResp)
 
 	// Added for testing
 	if len(healthResp) == 0 {
 		return (false)
 	}
 
-	if healthResp[0].Image_url == "https://comp413-places.s3.amazonaws.com/1572467590447health.jpg" {
+	if healthResp[0].ImageURL == "https://comp413-places.s3.amazonaws.com/1572467590447health.jpg" {
 		//fmt.Println("Response OK")
 		return (true)
 	}
@@ -939,24 +962,24 @@ func serveResponseThenCleanup(id uuid.UUID) {
 				http.Error(resWriter, "Received bad response for view request from server", http.StatusBadGateway)
 			}
 
-			data_b := []byte(data)
+			dataB := []byte(data)
 
 			if verbose {
-				fmt.Printf("Serving response body: %s \n", string(data_b))
+				fmt.Printf("Serving response body: %s \n", string(dataB))
 			}
 
 			// Set the appropriate things on the response writer
 			resWriter.Header().Set("Content-Type", "application/json")
 			//resWriter.Header().Set("Content-Length", string(1000))
-			resWriter.Header().Set("Content-Length", strconv.Itoa(len(data_b)))
+			resWriter.Header().Set("Content-Length", strconv.Itoa(len(dataB)))
 			//resWriter.WriteHeader(http.StatusOK)
 			// todo: check which status code we want
 			if verbose {
-				fmt.Printf("Num bytes: %d \n", binary.Size(data_b))
+				fmt.Printf("Num bytes: %d \n", binary.Size(dataB))
 			}
 
 			// serve the request to the client
-			i, writeErr := resWriter.Write(data_b)
+			i, writeErr := resWriter.Write(dataB)
 			if verbose {
 				log.Printf("Wrote: %d bytes to the client \n", i)
 			}
@@ -986,27 +1009,29 @@ func multiServerMapCleanup(id uuid.UUID) {
 	delete(responseWriterMap, id)
 	if verbose {
 		log.Printf("Cleaned up maps for id: %s \n", id.String())
-		//log.Println("New map", queryMap)
 	}
 	mapMutex.Unlock()
 }
 
 func updateServerURLs() {
+	serverURLs = nil
+	// serverURLs = make([]string, len(instances))
 	for _, instance := range instances {
 		taskDefFam := *instance.Attributes["ECS_TASK_DEFINITION_FAMILY"]
 		if taskDefFam == serverTaskDef {
 			ip := *instance.Attributes["AWS_INSTANCE_IPV4"]
-			serverURLs = append(serverURLs, "http://"+ip)
+			url := "http://" + ip + ":3000"
+			serverURLs = append(serverURLs, url)
 			if verbose {
-				log.Printf("Appended server URL: http://%s", ip)
+				log.Printf("Appended server URL: %s", url)
 			}
 		}
 	}
 }
 
-func checkService() {
+func discoverInstances() {
 	if verbose {
-		fmt.Println("Discovering instances...")
+		fmt.Println("Discovering healthy instances...")
 	}
 
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
@@ -1031,6 +1056,23 @@ func checkService() {
 	}
 }
 
+func rediscoverInstances(ticker *time.Ticker, done chan bool) {
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			// Reset servers
+			discoverInstances()
+			if verbose {
+				log.Println("Resetting URLs...")
+				logSetup()
+			}
+			mapURLS()
+		}
+	}
+}
+
 func main() {
 	flag.BoolVar(&verbose, "v", false, "a bool")
 	flag.Parse()
@@ -1038,35 +1080,28 @@ func main() {
 		fmt.Println("Verbose mode")
 	}
 
-	checkService()
+	discoverInstances()
 
 	// Log setup values
 	logSetup()
-	setupMap()
+	mapCoords()
 
 	if verbose {
 		fmt.Println("Map set up")
 	}
 
-	// rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
-	rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
+	rh := &singleViewRequestHandler{} // Uncomment this for single server routing.
+	//rh := &viewRequestHandler{} // Uncomment this for multiple server routing.
 	// start server
 	// Gzip handler will only encode the response if the client supports it view the Accept-Encoding header.
 	// See NewGzipLevelHandler at https://sourcegraph.com/github.com/nytimes/gziphandler/-/blob/gzip.go#L298
 	gzHandleFunc := gziphandler.GzipHandler(rh)
-	//http.Handle("/view", rh)
 	http.Handle("/view", gzHandleFunc)
 	http.HandleFunc("/submit", serveSubmitReverseProxy)
 	http.HandleFunc("/count", serveCountRequest)
-
-	//http.HandleFunc("/", handleRequestAndRedirect)
-	//http.HandleFunc("/", testFixedResponse)
-	//Initialize ticker + channel + run in parallel
-	/*
-		ticker := time.NewTicker(5000 * time.Millisecond)
-		done := make(chan bool)
-		go checkHealth(ticker, done)
-	*/
+	ticker := time.NewTicker(5 * time.Minute)
+	done := make(chan bool)
+	go rediscoverInstances(ticker, done)
 	if err := http.ListenAndServe(getListenAddress(), nil); err != nil {
 		fmt.Println("Error when calling listen and serve")
 		panic(err)

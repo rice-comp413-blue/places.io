@@ -7,6 +7,8 @@ import CardMedia from '@material-ui/core/CardMedia';
 import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
 import Typography from '@material-ui/core/Typography';
+import locationIcon from '../../Assets/location_marker.png';
+
 
 const useStyles = makeStyles(() => ({
   card: {
@@ -17,13 +19,19 @@ const useStyles = makeStyles(() => ({
     borderColor: 'grey',
     marginBottom: '1em',
     cursor: 'pointer'
-  }, 
+  },
   media: {
     height: 0,
     paddingTop: '56.25%', // 16:9
   },
   headerTitle: {
     fontSize: '0.65em'
+  },
+  address: {
+    fontSize: '0.6em',
+    marginTop: '0.2em',
+    marginBottom: '0.2em'
+
   },
   subHeader: {
     fontSize: '0.85em'
@@ -32,12 +40,17 @@ const useStyles = makeStyles(() => ({
     color: 'black'
   },
   id: {
-    fontSize: '0.8em',
+    fontSize: '0.6em',
     right: 0,
     fontStyle: 'italic',
     marginLeft: 'auto',
     marginRight: 0,
     color: 'grey'
+  },
+  locationIcon: {
+    width: '1em',
+    height: '1em',
+    marginRight: '0.5em'
   }
 }));
 
@@ -45,11 +58,21 @@ export default function MediaCard(props) {
   const classes = useStyles();
 
   return (
-    <Card className={classes.card} style={props.selected ? {'borderWidth':'5px'} : undefined} onClick={() => props.onStoryClick(props.story.storyid)}>
+    <Card className={classes.card} style={props.selected ? { 'borderWidth': '5px' } : undefined} onClick={() => props.onStoryClick(props.story.storyid)}>
       <CardHeader
         title={
-          <div className={classes.headerTitle}>
-            {`Location: (${props.story.lat.toFixed(4)}, ${props.story.long.toFixed(4)})`}
+          <div>
+            <div className={classes.headerTitle}>
+              <img
+                alt="location"
+                className={classes.locationIcon}
+                src={locationIcon}>
+              </img>
+              {`Location: (${props.story.lat.toFixed(4)}, ${props.story.long.toFixed(4)})`}
+            </div>
+            <div className={classes.address}>
+              {props.story.address}
+            </div>
           </div>
         }
         subheader={
@@ -58,7 +81,7 @@ export default function MediaCard(props) {
           </div>}
       />
 
-      {props.story.image_url !== null ?
+      {props.story.image_url ?
         <CardMedia
           className={classes.media}
           image={props.story.image_url}
