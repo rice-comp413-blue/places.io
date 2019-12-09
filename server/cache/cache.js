@@ -77,7 +77,6 @@ class StoriesCache {
     }
 
     getView = (lat1, lon1, lat2, lon2, max, skip) => {
-        console.log("cache was used");
         const box = this.rbush.search({
             minX: lon1,
             minY: lat2,
