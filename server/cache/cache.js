@@ -85,6 +85,7 @@ class StoriesCache {
         });
         var final = [];
         for (var i = skip; i < skip + max; i++) {
+            if (box[i] == null) { break; }
             final.push(box[i]);
         }
         return final;
