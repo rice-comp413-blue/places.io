@@ -1,4 +1,4 @@
-FROM node:10
+FROM node:12
 RUN mkdir /usr/src/server
 ADD . /usr/src/server
 
