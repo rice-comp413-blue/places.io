@@ -9,7 +9,7 @@ const getStoriesInBox = (req, res) => {
     let newBox = new boxModel(req.body);
     let check = cache.isCached(newBox.latlng1[0], newBox.latlng1[1], newBox.latlng2[0], newBox.latlng2[1]);
     if (check) {
-        let cached_response = cache.getView(newBox.latlng1[0], newBox.latlng1[1], newBox.latlng2[0], newBox.latlng2[1], newBox.pagelimit);
+        let cached_response = cache.getView(newBox.latlng1[0], newBox.latlng1[1], newBox.latlng2[0], newBox.latlng2[1], newBox.pagelimit, newBox.skip);
         res.status(200).json({"entries": cached_response, "id": newBox.id}) 
     }
     else {

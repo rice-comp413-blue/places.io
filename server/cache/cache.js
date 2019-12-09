@@ -76,15 +76,18 @@ class StoriesCache {
         stories.forEach(story => {this.rbush.insert(story)});
     }
 
-    getView = (lat1, lon1, lat2, lon2, max) => {
+    getView = (lat1, lon1, lat2, lon2, max, skip) => {
         const box = this.rbush.search({
             minX: lon1,
             minY: lat2,
             maxX: lon2,
             maxY: lat1
         });
-        // TODO: only return max number of elements
-        return box;
+        var final = [];
+        for (var i = skip; i < skip + max; i++) {
+            final.push(box[i]);
+        }
+        return final;
     }
 
     /**
