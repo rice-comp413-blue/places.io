@@ -47,10 +47,16 @@ class MapView extends React.Component {
         return riceCampusCoordinate;
     }
 
+
     render() {
+        // console.log(this.props.selectedStory)
         return (
-            <Map ref={(ref) => { this.map = ref; }} onClick={(this.handleClick.bind(this))} center={this.mapCenter()} zoom={10}
-                style={{ height: '90vh', width: '100%' }}>
+            <Map ref={(ref) => { this.map = ref; }}
+                onClick={(this.handleClick.bind(this))}
+                center={this.mapCenter()}
+                zoom={10}
+                style={{ height: '90vh', width: '100%' }}
+            >
                 <TileLayer
                     attribution='&amp;copy <a href="https://github.com/rice-comp413-blue/places.io">BlueTeam</a> | places.io'
                     url="https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png"
@@ -63,41 +69,41 @@ class MapView extends React.Component {
                             position={[marker.lat, marker.long]}
                             onClick={() => this.props.onStoryClick(marker.storyid)}
                         >
-                            <Popup>
-                                <h5>Description</h5><br /> {marker.text}
-                                {marker.image_url ? <img alt="Story" src={marker.image_url} style={{ height: '100px' }} /> : <p className="missing">No image attached.</p>}
-                                <p>Story Id: {marker.storyid}</p>
-                            </Popup>
                         </Marker>
                     )
 
-                })}
+                })
+                }
 
                 {/*The active marker needs to be placed last in order for it to show. There should only be 1.*/}
 
-                {this.props.markers.filter((b) => b.storyid === this.props.selectedStory).map(marker => {
-                    return (
-                        <ActiveMarker
-                            key={marker.storyid}
-                            position={[marker.lat, marker.long]}>
-                            <Popup>
-                                <div>{marker.text} </div><br />
-                                {marker.image_url ? <img alt="Story" src={marker.image_url} style={{ height: '100px' }} /> : <p className="missing">No image attached.</p>}
-                                <p>Story Id: {marker.storyid}</p>
-                            </Popup>
-                        </ActiveMarker>
-                    )
+                {
+                    this.props.markers.filter((b) => b.storyid === this.props.selectedStory).map(marker => {
+                        return (
+                            <ActiveMarker
+                                key={marker.storyid}
+                                position={[marker.lat, marker.long]}>
+                                <Popup onClose={() => this.props.onStoryClick(null)}>
+                                    <div>{marker.text} </div><br />
+                                    {marker.image_url ? <img alt="Story" src={marker.image_url} style={{ height: '100px' }} /> : <p className="missing">No image attached.</p>}
+                                    <p>Story Id: {marker.storyid}</p>
+                                </Popup>
+                            </ActiveMarker>
+                        )
 
-                })}
+                    })
+                }
 
-                {this.props.mode === 'view' && this.state.currentZoom > 6 ?
-                    <Control position="topright" >
-                        <Button onClick={this.handleViewClick.bind(this)}>
-                            Query
+                {
+                    this.props.mode === 'view' && this.state.currentZoom > 6 ?
+                        <Control position="topright" >
+                            <Button onClick={this.handleViewClick.bind(this)}>
+                                Query
                         </Button>
-                    </Control>
-                    : null}
-            </Map>
+                        </Control>
+                        : null
+                }
+            </Map >
         );
     }
 }
