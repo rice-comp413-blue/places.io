@@ -28,15 +28,15 @@ class StoriesCache {
         this.rbush = new PointsRBush(); // the r tree based data store
     }
 
-    coordsToString = (lat1, lon1, lat2, lon2) => {
+    coordsToString (lat1, lon1, lat2, lon2) {
         return lat1 + "-" + lon1 + "-" + lat2 + "-" + lon2;
     }
 
-    stringToCoords = (key) => {
+    stringToCoords (key) {
         return key.split("-").map(x => parseFloat(x));
     }
 
-    isCached = (lat1, lon1, lat2, lon2) => {
+    isCached (lat1, lon1, lat2, lon2) {
         let flag = false;
         this.intervals.forEach(interval => {
             // check if this search box is within the bounds of an existing cached box
@@ -47,7 +47,7 @@ class StoriesCache {
         return flag;
     }
 
-    isNonOverlapping = (lat1, lon1, lat2, lon2) => {
+    isNonOverlapping (lat1, lon1, lat2, lon2) {
         let flag = true;
         this.intervals.forEach(interval => {
             // check if this search box is within the bounds of an existing cached box
@@ -58,7 +58,7 @@ class StoriesCache {
         return flag;
     }
 
-    evict = (key, stories) => {
+    evict (key, stories) {
         this.intervals.remove(this.stringToCoords(key));
         // this is potentially expensive
         stories.forEach(story => {
@@ -68,7 +68,7 @@ class StoriesCache {
         })
     }
 
-    addView = (lat1, lon1, lat2, lon2, stories) => {
+    addView (lat1, lon1, lat2, lon2, stories) {
         if (!this.isNonOverlapping(lat1, lon1, lat2, lon2)) { return false; }
         let range_key = this.coordsToString(lat1, lon1, lat2, lon2);
         this.intervals.add([lat1, lon1, lat2, lon2]);
@@ -76,7 +76,7 @@ class StoriesCache {
         stories.forEach(story => {this.rbush.insert(story)});
     }
 
-    getView = (lat1, lon1, lat2, lon2, max, skip) => {
+    getView (lat1, lon1, lat2, lon2, max, skip) {
         const box = this.rbush.search({
             minX: lon1,
             minY: lat2,
@@ -94,7 +94,7 @@ class StoriesCache {
     /**
      * returns true if inserted into cache
      */
-    insert = (lat, lng, story) => {
+    insert (lat, lng, story) {
         var i;
         for (i = 0; i < this.intervals.size; i++) {
             let interval = this.intervals[i];
@@ -111,11 +111,11 @@ class StoriesCache {
         return false;
     }
 
-    size = () => {
+    size () {
         return this.cache.length;
     }
     
-    all = () => {
+    all () {
         return this.rbush.all();
     }
 
