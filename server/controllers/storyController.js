@@ -2,7 +2,7 @@ const storyModel = require('../models/storyModel');
 const boxModel = require('../models/boxModel');
 const healthModel = require('../models/healthModel');
 const StoriesCache = require('../cache/cache');
-const CACHE_LIMIT = 100; // number of stories the cache can hold at a time
+const CACHE_LIMIT = 10000; // number of stories the cache can hold at a time
 const cache = new StoriesCache(CACHE_LIMIT);
 
 const getStoriesInBox = (req, res) => {
