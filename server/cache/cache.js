@@ -70,13 +70,14 @@ class StoriesCache {
 
     addView = (lat1, lon1, lat2, lon2, stories) => {
         if (!this.isNonOverlapping(lat1, lon1, lat2, lon2)) { return false; }
-        let range_key = this.coordsToString([lat1, lon1, lat2, lon2]);
+        let range_key = this.coordsToString(lat1, lon1, lat2, lon2);
         this.intervals.add([lat1, lon1, lat2, lon2]);
         this.cache.set(range_key, new Set(stories));
         stories.forEach(story => {this.rbush.insert(story)});
     }
 
     getView = (lat1, lon1, lat2, lon2, max, skip) => {
+        console.log("cache was used");
         const box = this.rbush.search({
             minX: lon1,
             minY: lat2,

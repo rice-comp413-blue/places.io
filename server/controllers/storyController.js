@@ -29,6 +29,7 @@ const getStoriesInBox = (req, res) => {
                         cache.addView(newBox.latlng1[0], newBox.latlng1[1], newBox.latlng2[0], newBox.latlng2[1], results.rows);
                     }
                 });
+                // cache.addView(newBox.latlng1[0], newBox.latlng1[1], newBox.latlng2[0], newBox.latlng2[1], record.rows);
                 res.status(200).json({"entries": record.rows, "id": newBox.id});
             }
         });
