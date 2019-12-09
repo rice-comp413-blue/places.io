@@ -12,6 +12,10 @@ class Box {
     this.pagelimit = box.pagelimit;
   }
 
+  updatePageLimit(pagelimit) {
+    this.pagelimit = pagelimit;
+  }
+
   static getStoriesInBox(box, result) {
     pool.query(
       "SELECT * FROM story WHERE " +

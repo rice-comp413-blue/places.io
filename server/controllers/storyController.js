@@ -19,7 +19,16 @@ const getStoriesInBox = (req, res) => {
                 res.status(404).json(err.toString());
                 throw err;
             } else {
-                cache.addView(newBox.latlng1[0], newBox.latlng1[1], newBox.latlng2[0], newBox.latlng2[1], record.rows);
+                // temporary patch for case where box has much more rows than pagelimit
+                newBox.updatePageLimit(CACHE_LIMIT);
+                boxModel.getStoriesInBox(newBox, function (err, results) {
+                    if (err) {
+                        res.status(404).json(err.toString());
+                        throw err;
+                    } else {
+                        cache.addView(newBox.latlng1[0], newBox.latlng1[1], newBox.latlng2[0], newBox.latlng2[1], results.rows);
+                    }
+                });
                 res.status(200).json({"entries": record.rows, "id": newBox.id});
             }
         });
