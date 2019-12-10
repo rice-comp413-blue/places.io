@@ -68,7 +68,7 @@ const createStory = async (req, res) => {
                 lat: newStory.lat,
                 long: newStory.lng,
                 text: newStory.text,
-                image_url: newStory.imageUrl
+                image_url: newStory.image_url
             }
             cache.insert(story.lat, story.long, story);
             if (req.file) {

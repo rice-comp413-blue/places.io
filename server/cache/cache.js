@@ -95,20 +95,21 @@ class StoriesCache {
      * returns true if inserted into cache
      */
     insert (lat, lng, story) {
-        var i;
-        for (i = 0; i < this.intervals.size; i++) {
-            let interval = this.intervals[i];
+        var inserted = false;
+        this.intervals.forEach(interval => {
+            // extra insurance because i dont want for us to redploy again
+            let notNull = interval && interval !== "null" && interval !== "undefined";
             // if the story is in the interval we can insert it, otherwise we do nothing
-            if (interval[0] >= lat >= interval[2] && interval[1] <= lng <= interval[3]) {
+            if (notNull && interval[0] >= lat >= interval[2] && interval[1] <= lng <= interval[3]) {
                 let range_key = this.coordsToString(
                     interval[0], interval[1], interval[2], interval[3]
                 );
                 this.cache.get(range_key).add(story);
                 this.rbush.insert(story);
-                return true;
+                inserted = true;
             }
-        }
-        return false;
+        })
+        return inserted;
     }
 
     size () {

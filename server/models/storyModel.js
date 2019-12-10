@@ -23,7 +23,7 @@ class Story {
     }
 
     updateImageUrl(url) {
-        this.imageUrl = url;
+        this.image_url = url;
     }
 
     static createStory(story, result) {
