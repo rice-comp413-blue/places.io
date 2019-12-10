@@ -52,9 +52,9 @@ const getTotalStoryCount = (req, res) => {
 const createStory = async (req, res) => {
     let newStory = new storyModel(req.body);
 
-    // reverse geocoding on the selected coordinates
-    let nominatimQuery = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${req.body.lat}&lon=${req.body.lng}`;
-    await axios.get(nominatimQuery).then((res) => { newStory.updateAddress(res.data.display_name); });
+    // // reverse geocoding on the selected coordinates
+    // let nominatimQuery = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${req.body.lat}&lon=${req.body.lng}`;
+    // await axios.get(nominatimQuery).then((res) => { newStory.updateAddress(res.data.display_name); });
 
     if (req.file) { newStory.updateImageUrl(req.file.location); }
     storyModel.createStory(newStory, function (err, record) {
@@ -68,7 +68,8 @@ const createStory = async (req, res) => {
                 lat: newStory.lat,
                 long: newStory.lng,
                 text: newStory.text,
-                image_url: newStory.image_url
+                image_url: newStory.image_url,
+                address: newStory.address
             }
             cache.insert(story.lat, story.long, story);
             if (req.file) {
