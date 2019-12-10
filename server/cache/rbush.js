@@ -1,4 +1,4 @@
-const RBush = require('RBush');
+const RBush = require('rbush');
 
 class PointsRBush extends RBush {
     toBBox(item) { return {minX: item.long, minY: item.lat, maxX: item.long, maxY: item.lat}; }
