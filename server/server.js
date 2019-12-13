@@ -18,8 +18,6 @@ app.post('/view', validationMiddleware.validViewRequestProperties, story.getStor
 
 app.post('/submit', upload.single('file'), validationMiddleware.validSubmitRequestProperties, story.createStory);
 
-app.get('/health', story.healthStory); // health check
-
 app.post('/count', story.getTotalStoryCount); // count stories
 
 app.listen(port, () => {
