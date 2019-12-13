@@ -57,6 +57,7 @@ const createStory = async (req, res) => {
     await axios.get(nominatimQuery).then((res) => { newStory.updateAddress(res.data.display_name); });
 
     if (req.file) { newStory.updateImageUrl(req.file.location); }
+
     storyModel.createStory(newStory, function (err, record) {
         if (err) {
             res.status(404).json(err.toString());
