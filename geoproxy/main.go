@@ -214,15 +214,6 @@ func mapURLS() {
 	coordBoxToServer[cr2][cr3] = 1 % len(serverURLs)
 }
 
-// Deprecated: health checks not being used currently
-func modifyMap(conditional int) {
-	if conditional == 0 {
-		coordBoxToServer[cr1][cr3] = 1
-	} else if conditional == 1 {
-		coordBoxToServer[cr2][cr3] = 0
-	}
-}
-
 // Get a json decoder for a given requests body
 func requestBodyDecoder(request *http.Request) *json.Decoder {
 	// Read body to buffer
@@ -798,99 +789,6 @@ func (rh *viewRequestHandler) ServeHTTP(res http.ResponseWriter, req *http.Reque
 	mapMutex.Unlock()
 
 	serveViewReverseProxy(urls, res, req, requestPayload, tag)
-}
-
-func checkMatches(resp *http.Response) bool {
-	var p []byte
-
-	if resp == nil {
-		fmt.Println("No Response received. Server may not be set up.")
-		return (false)
-	}
-
-	if resp.ContentLength < 0 {
-		fmt.Println("No Data returned")
-		return (false)
-	}
-	p = make([]byte, resp.ContentLength)
-	resp.Body.Read(p)
-	healthJSON := string(p)
-	var healthResp []healthResponse
-	json.Unmarshal([]byte(healthJSON), &healthResp)
-
-	// Added for testing
-	if len(healthResp) == 0 {
-		return (false)
-	}
-
-	if healthResp[0].ImageURL == "https://comp413-places.s3.amazonaws.com/1572467590447health.jpg" {
-		//fmt.Println("Response OK")
-		return (true)
-	}
-
-	return (false)
-}
-
-// Deprecated: No longer using .env exports
-// This function is called on a timer and pings both
-// servers with a GET request. A 302 response is expected
-// but not yet explicity checked
-func checkHealth(ticker *time.Ticker, done chan bool) {
-	//Reference for ticker code:
-	for {
-		select {
-		//Is there any case we want this ticker to stop? Leaving for now in case
-		// we want to modify this
-		case <-done:
-			return
-		//case t := <-ticker.C:
-		case <-ticker.C:
-			client := &http.Client{
-				//Reference here for redirect code: https://jonathanmh.com/tracing-preventing-http-redirects-golang/
-				CheckRedirect: func(req *http.Request, via []*http.Request) error {
-					return http.ErrUseLastResponse
-				}}
-
-			if pingA {
-				resp, err := client.Get(os.Getenv("A_CONDITION_URL") + "/health")
-
-				// Modified for testing
-				//What should we do if we run into an error? Right now just printing it
-				if err != nil {
-					fmt.Println(err)
-					modifyMap(0)
-					pingA = false
-				} else {
-					valid := checkMatches(resp)
-
-					if valid != true {
-						fmt.Println("Error in response JSON during health check")
-						modifyMap(0)
-						pingA = false
-					}
-				}
-			}
-
-			if pingB {
-				resp, err2 := client.Get(os.Getenv("B_CONDITION_URL") + "/health")
-
-				// Modified for testing
-				if err2 != nil {
-					fmt.Println(err2)
-					modifyMap(1)
-					pingB = false
-				} else {
-					valid := checkMatches(resp)
-					if valid != true {
-						fmt.Println("Error in response JSON during health check")
-						modifyMap(1)
-						pingB = false
-					}
-				}
-			}
-
-		}
-	}
 }
 
 func processResponse(response ResponseObj) {
