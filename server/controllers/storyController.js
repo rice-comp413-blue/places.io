@@ -1,6 +1,5 @@
 const storyModel = require('../models/storyModel');
 const boxModel = require('../models/boxModel');
-const healthModel = require('../models/healthModel');
 const StoriesCache = require('../cache/cache');
 const CACHE_LIMIT = 10000; // number of stories the cache can hold at a time
 const cache = new StoriesCache(CACHE_LIMIT);
@@ -71,7 +70,7 @@ const createStory = async (req, res) => {
                 text: newStory.text,
                 image_url: newStory.image_url,
                 address: newStory.address
-            }
+            };
             cache.insert(story.lat, story.long, story);
             if (req.file) {
                 let url = req.file.location;
@@ -83,20 +82,8 @@ const createStory = async (req, res) => {
     });
 };
 
-const healthStory = (req, res) => {
-    healthModel.getHealth(function (err, record) {
-        if (err) {
-            res.status(404).json(err.toString());
-            throw err;
-        } else {
-            res.status(200).json(record.rows);
-        }
-    })
-};
-
 module.exports = {
     createStory,
     getStoriesInBox,
     getTotalStoryCount,
-    healthStory,
 };
