@@ -1,9 +1,3 @@
-# GeoProxy Component
-The geoproxy will have a very simple design
-
-This design is pretty much the same as that presented in this article:
-https://hackernoon.com/writing-a-reverse-proxy-in-just-one-line-with-go-c1edfa78c84b
-
 ## Containerization/Running in a Docker Container:
 This directory contains everything necessary to build and run the proxy in a container. All one has to do is to first build the image by doing:
 
