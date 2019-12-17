@@ -442,11 +442,6 @@ func getSubmitProxyURL(rawCoord []float64) string {
 	return ErrorURL
 }
 
-func isJSON(s string) bool {
-	var js map[string]interface{}
-	return json.Unmarshal([]byte(s), &js) == nil
-}
-
 // Takes in the new latlng box, response writer, request, unmarshalled view request payload, and uuid for request
 func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter, req *http.Request, reqPayload viewRequestPayloadStruct, id uuid.UUID) {
 	if verbose {
@@ -516,12 +511,6 @@ func serveViewReverseProxy(targets map[string]CoordBox, res http.ResponseWriter,
 }
 
 func buildProxy(proxy *httputil.ReverseProxy) {
-
-	// proxy.ModifyResponse = func(r *http.Response) error {
-	// 		// return nil
-	// 		// purposefully return an error so ErrorHandler gets called
-	// 		return errors.New("uh-oh")
-	// }
 
 	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
 		fmt.Printf("error was: %+v \n", err)
