@@ -1,6 +1,6 @@
 # Server Component
 
-## Databse Requirements
+## Database Requirements
 
 Below are the required database instance for utilizing the server component:
 
@@ -29,7 +29,7 @@ docker run -p 3000:3000 -d server
 
 ### Running Server Without Docker
 ```
-node server
+npm start
 ```
 
 The server should now be up on *http://localhost:3000*
@@ -40,7 +40,7 @@ You can view all supported requests [here](https://documenter.getpostman.com/vie
 ## Tests
 To run tests, run the following command:
 
-```$xslt
+```
 npm test
 ```
 
